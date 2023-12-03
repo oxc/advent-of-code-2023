@@ -18,4 +18,15 @@ fun String.md5() = BigInteger(1, MessageDigest.getInstance("MD5").digest(toByteA
 /**
  * The cleaner shorthand for printing output.
  */
-fun <T : Any?> T.println(): T { println(this); return this }
+fun <T : Any?> T.println(): T {
+    println(this)
+    return this
+}
+
+fun <T : AbstractMatrix<*>> T.println(printThis: Boolean = false): T {
+    if (printThis) println(this)
+    println(print())
+    return this
+}
+
+fun List<String>.toCharMatrix(padChar: Char = '.') = Matrix.fromLines(this, padChar)
