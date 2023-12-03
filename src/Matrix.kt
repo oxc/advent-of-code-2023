@@ -65,11 +65,11 @@ abstract class AbstractMatrix<T>(
         )
     }
 
-    fun asSequence(): Sequence<T> {
+    fun asSequence(): Sequence<Field<T>> {
         return sequence {
             for (y in 0..<height) {
                 for (x in 0..<width) {
-                    yield(this@AbstractMatrix[x, y].value)
+                    yield(this@AbstractMatrix[x, y])
                 }
             }
         }
@@ -129,7 +129,7 @@ open class Line<T>(
 ) {
     override fun print(stringBuilder: StringBuilder): StringBuilder {
         this.asSequence().forEach {
-            stringBuilder.append(it)
+            it.print(stringBuilder)
         }
         return stringBuilder
     }
@@ -186,6 +186,19 @@ class Field<T>(
 ) {
     override fun print(stringBuilder: StringBuilder): StringBuilder {
         return stringBuilder.append(value)
+    }
+
+    override fun hashCode(): Int {
+        return y * 31 + x
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (other !is Field<*>) return false
+        return x == other.x && y == other.y
+    }
+
+    override fun toString(): String {
+        return "Field(x=$x, y=$x, value=$value)"
     }
 }
 
