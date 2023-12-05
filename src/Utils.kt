@@ -32,9 +32,9 @@ fun <T : AbstractMatrix<*>> T.println(printThis: Boolean = false): T {
 fun List<String>.toCharMatrix(padChar: Char = '.') = Matrix.fromLines(this, padChar)
 
 fun List<String>.toLongs() = map { it.toLong() }
-fun List<String>.toLongSet() = toLongs().toSet()
+fun String.splitToLongs() = this.trim().split(' ').toLongs()
 fun List<String>.toInts() = map { it.toInt() }
-fun List<String>.toIntSet() = toInts().toSet()
+fun String.splitToInts() = this.trim().split(' ').toInts()
 
 fun Int.pow(exp: Int): Long {
     var result = 1L
