@@ -3,39 +3,69 @@ import java.util.*
 typealias Category = String
 
 data class Range(val source: LongRange, val offset: Long) {
+    val dest = (source.first + offset)..(source.last + offset)
+
     operator fun contains(value: Long): Boolean {
         return value in source
     }
 
-    operator fun get(value: Long): Long? {
+    fun map(value: Long): Long? {
         if (value !in source) return null
         return value + offset
     }
 }
 
-data class Mapper(val from: Category, val to: Category, val ranges: List<Range>) : (Long) -> Long {
-    override fun invoke(value: Long): Long {
+data class Mapper(val from: Category, val to: Category, val ranges: MutableList<Range>) {
+    init {
+        ranges.sortBy { it.source.first }
+    }
+
+    fun map(value: LongRange): Sequence<LongRange> = sequence {
+        if (value.isEmpty()) return@sequence
         for (range in ranges) {
-            return range[value] ?: continue
+            // comes before this range, yield unaltered
+            if (value.last < range.source.first) {
+                yield(value)
+                return@sequence
+            }
+            // is exactly this range
+            if (value == range.source) {
+                yield(range.dest)
+                return@sequence
+            }
+            // is fully contained in this range
+            if (value.first >= range.source.first && value.last <= range.source.last) {
+                yield((value.first + range.offset)..(value.last + range.offset))
+                return@sequence
+            }
+            // overlaps at least on the left side with this range, split in two at range start and recurse
+            if (value.first < range.source.first && value.last >= range.source.first) {
+                yield(value.first..<range.source.first)
+                yieldAll(map(range.source.first..value.last))
+                return@sequence
+            }
+            // overlaps on the right side with this range, split in two and recurse
+            if (value.first < range.source.last) {
+                yield((value.first + range.offset)..range.dest.last)
+                yieldAll(map(range.source.last + 1..value.last))
+                return@sequence
+            }
+            // is after this range, let next range handle this
         }
-        return value
+        yield(value)
     }
 }
 
-data class Puzzle(val seedSources: List<Iterable<Long>>, val mappers: Map<Category, Mapper>) {
-    fun seeds(): Sequence<Long> {
-        return sequence {
-            seedSources.forEach { yieldAll(it) }
-        }
-    }
-
-    private fun findLocation(category: Category, number: Long): Long {
-        if (category == "location") return number
+data class Puzzle(val seedRanges: List<LongRange>, val mappers: Map<Category, Mapper>) {
+    private fun findMinimalLocation(category: Category, range: LongRange): Long {
+        if (category == "location") return range.first
         val mapper = mappers[category] ?: throw NoSuchElementException("No mapper for $category")
-        return findLocation(mapper.to, mapper(number))
+        return mapper.map(range).minOf { findMinimalLocation(mapper.to, it) }
     }
 
-    fun findLocation(seed: Long) = findLocation("seed", seed)
+    fun findMinimalLocation(seed: LongRange) = findMinimalLocation("seed", seed)
+
+    fun findMinimalLocation() = seedRanges.minOf { findMinimalLocation(it) }
 }
 
 fun parseMappers(lines: LinkedList<String>): MutableMap<Category, Mapper> {
@@ -55,21 +85,21 @@ fun parseMappers(lines: LinkedList<String>): MutableMap<Category, Mapper> {
     return mappers
 }
 
-fun main() = runParallel {
+fun main() {
     fun part1(input: List<String>): Long {
         fun parse(input: List<String>): Puzzle {
             val lines = LinkedList(input)
-            val seeds = lines.pop().split(':').last().splitToLongs().toSet()
+            val seedRanges = lines.pop().split(':').last().splitToLongs().map { it..it }
             val mappers = parseMappers(lines)
-            return Puzzle(listOf(seeds), mappers)
+            return Puzzle(seedRanges, mappers)
         }
 
         val puzzle = parse(input).println()
 
-        return puzzle.seeds().minOf { puzzle.findLocation(it) }
+        return puzzle.findMinimalLocation()
     }
 
-    suspend fun part2(input: List<String>): Long {
+    fun part2(input: List<String>): Long {
         fun parse(input: List<String>): Puzzle {
             val lines = LinkedList(input)
             val numbers = LinkedList(lines.pop().split(':').last().splitToLongs())
@@ -86,7 +116,7 @@ fun main() = runParallel {
 
         val puzzle = parse(input).println()
 
-        return puzzle.seedSources.pmap { it.minOf { puzzle.findLocation(it) } }.min()
+        return puzzle.findMinimalLocation()
     }
 
     // test if implementation meets criteria from the description, like:
