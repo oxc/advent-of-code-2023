@@ -3,6 +3,7 @@ import java.security.MessageDigest
 import kotlin.io.path.Path
 import kotlin.io.path.readLines
 
+
 /**
  * Reads lines from the given input txt file.
  */
@@ -30,6 +31,8 @@ fun <T : AbstractMatrix<*>> T.println(printThis: Boolean = false): T {
 }
 
 val WHITESPACE = Regex("""\s+""")
+
+fun parseCharMatrix(input: List<String>, padChar: Char = '.') = input.toCharMatrix(padChar)
 
 fun List<String>.toCharMatrix(padChar: Char = '.') = Matrix.fromLines(this, padChar)
 

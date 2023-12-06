@@ -4,7 +4,7 @@ enum class Color {
 
 typealias Dice = Map<Color, Int>
 
-fun main() {
+fun main() = day(2) {
     fun Dice.power() = Color.entries.fold(1) { acc, color ->
         acc * this.getOrDefault(color, 1)
     }
@@ -37,25 +37,14 @@ fun main() {
         return Game(gameId, sets)
     }
 
-    fun part1(input: List<String>): Int {
-        val games = input.map(::parseGame).println()
+    part1(check = 8, { it.map(::parseGame) }) { games ->
         val bag = mapOf(Color.red to 12, Color.green to 13, Color.blue to 14)
-        return games.filter {
+        games.filter {
             it.isPossibleWith(bag)
         }.println().sumOf { it.id }
     }
 
-    fun part2(input: List<String>): Int {
-        val games = input.map(::parseGame).println()
-        return games.map { it.minimalSet() }.sumOf { it.power() }
+    part2(check = 2286, { it.map(::parseGame) }) { games ->
+        games.map { it.minimalSet() }.println().sumOf { it.power() }
     }
-
-    // test if implementation meets criteria from the description, like:
-    val testInput = readInput("Day02_test")
-    check(part1(testInput).println() == 8)
-    check(part2(testInput).println() == 2286)
-
-    val input = readInput("Day02")
-    part1(input).println()
-    part2(input).println()
 }

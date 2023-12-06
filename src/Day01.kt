@@ -1,13 +1,14 @@
-fun main() {
-    fun part1(input: List<String>): Int {
-        return input
+fun main() = day(1) {
+    part1(check = 142) { input ->
+        input
             .map { line ->
                 (line.find { it.isDigit() }!!.digitToInt() * 10
-                + line.findLast { it.isDigit() }!!.digitToInt())  }
+                        + line.findLast { it.isDigit() }!!.digitToInt())
+            }
             .fold(0) { s, v -> s + v }
     }
 
-    fun part2(input: List<String>): Int {
+    part2(check = 281) { input ->
         val namedDigits = listOf(
             "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"
         )
@@ -28,20 +29,9 @@ fun main() {
             return result
         }
 
-        return input
+        input
             .map { line -> extractDigits(line) }
             .map { digits -> digits.first() * 10 + digits.last() }
             .fold(0) { s, v -> s + v }
     }
-
-    // test if implementation meets criteria from the description, like:
-    val testInput = readInput("Day01_test")
-    check(part1(testInput) == 142)
-
-    val testInput2 = readInput("Day01_test2")
-    check(part2(testInput2) == 281)
-
-    val input = readInput("Day01")
-    part1(input).println()
-    part2(input).println()
 }

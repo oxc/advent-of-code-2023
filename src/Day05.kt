@@ -85,46 +85,29 @@ fun parseMappers(lines: LinkedList<String>): MutableMap<Category, Mapper> {
     return mappers
 }
 
-fun main() {
-    fun part1(input: List<String>): Long {
-        fun parse(input: List<String>): Puzzle {
-            val lines = LinkedList(input)
-            val seedRanges = lines.pop().split(':').last().splitToLongs().map { it..it }
-            val mappers = parseMappers(lines)
-            return Puzzle(seedRanges, mappers)
-        }
-
-        val puzzle = parse(input).println()
-
-        return puzzle.findMinimalLocation()
+fun main() = day(5) {
+    part1(check = 35L, { input ->
+        val lines = LinkedList(input)
+        val seedRanges = lines.pop().split(':').last().splitToLongs().map { it..it }
+        val mappers = parseMappers(lines)
+        Puzzle(seedRanges, mappers)
+    }) { puzzle ->
+        puzzle.findMinimalLocation()
     }
 
-    fun part2(input: List<String>): Long {
-        fun parse(input: List<String>): Puzzle {
-            val lines = LinkedList(input)
-            val numbers = LinkedList(lines.pop().split(':').last().splitToLongs())
-            val seedRanges = LinkedList<LongRange>()
-            while (numbers.isNotEmpty()) {
-                val seed = numbers.pop()
-                val count = numbers.pop()
-                seedRanges += seed..<(seed + count)
-            }
-
-            val mappers = parseMappers(lines)
-            return Puzzle(seedRanges, mappers)
+    part2(46L, { input ->
+        val lines = LinkedList(input)
+        val numbers = LinkedList(lines.pop().split(':').last().splitToLongs())
+        val seedRanges = LinkedList<LongRange>()
+        while (numbers.isNotEmpty()) {
+            val seed = numbers.pop()
+            val count = numbers.pop()
+            seedRanges += seed..<(seed + count)
         }
 
-        val puzzle = parse(input).println()
-
-        return puzzle.findMinimalLocation()
+        val mappers = parseMappers(lines)
+        Puzzle(seedRanges, mappers)
+    }) { puzzle ->
+        puzzle.findMinimalLocation()
     }
-
-    // test if implementation meets criteria from the description, like:
-    val testInput = readInput("Day05_test")
-    check(part1(testInput).println() == 35L)
-    check(part2(testInput).println() == 46L)
-
-    val input = readInput("Day05")
-    part1(input).println()
-    part2(input).println()
 }

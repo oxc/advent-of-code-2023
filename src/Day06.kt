@@ -5,7 +5,7 @@ import kotlin.math.sqrt
 
 data class Race(val duration: Long, val record: Long)
 
-fun main() {
+fun main() = day(6) {
     fun Race.minMax(): LongRange {
         // record = (duration - speedup) * speedup
         // speedup_min = -0.5 * (sqrt(duration^2 - 4 * record) - duration)
@@ -20,37 +20,21 @@ fun main() {
         return (floor(speedupMin + 1).toLong()..ceil(speedupMax - 1).toLong())
     }
 
-    fun part1(input: List<String>): Long {
-        fun parse(input: List<String>): List<Race> {
-            val durations = input[0].removePrefix("Time: ").splitToLongs(WHITESPACE)
-            val records = input[1].removePrefix("Distance: ").splitToLongs(WHITESPACE)
-            return durations.zip(records) { duration, record -> Race(duration, record) }
-        }
-
-        val races = parse(input)
-        return races.productOf {
+    part1(check = 288L, { input ->
+        val durations = input[0].removePrefix("Time: ").splitToLongs(WHITESPACE)
+        val records = input[1].removePrefix("Distance: ").splitToLongs(WHITESPACE)
+        durations.zip(records) { duration, record -> Race(duration, record) }
+    }) { races ->
+        races.productOf {
             it.minMax().span()
         }
     }
 
-    fun part2(input: List<String>): Long {
-        fun parse(input: List<String>): Race {
-            val duration = input[0].removePrefix("Time: ").replace(WHITESPACE, "").toLong()
-            val record = input[1].removePrefix("Distance: ").replace(WHITESPACE, "").toLong()
-            return Race(duration, record)
-        }
-
-        val race = parse(input).println()
-
-        return race.minMax().span()
+    part2(check = 71503L, { input ->
+        val duration = input[0].removePrefix("Time: ").replace(WHITESPACE, "").toLong()
+        val record = input[1].removePrefix("Distance: ").replace(WHITESPACE, "").toLong()
+        Race(duration, record)
+    }) { race ->
+        race.minMax().span()
     }
-
-    // test if implementation meets criteria from the description, like:
-    val testInput = readInput("Day06_test")
-    check(part1(testInput).println() == 288L)
-    check(part2(testInput).println() == 71503L)
-
-    val input = readInput("Day06")
-    part1(input).println()
-    part2(input).println()
 }
