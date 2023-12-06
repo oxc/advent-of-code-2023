@@ -29,12 +29,19 @@ fun <T : AbstractMatrix<*>> T.println(printThis: Boolean = false): T {
     return this
 }
 
+val WHITESPACE = Regex("""\s+""")
+
 fun List<String>.toCharMatrix(padChar: Char = '.') = Matrix.fromLines(this, padChar)
 
 fun List<String>.toLongs() = map { it.toLong() }
 fun String.splitToLongs() = this.trim().split(' ').toLongs()
+fun String.splitToLongs(regex: Regex) = this.trim().split(regex).toLongs()
 fun List<String>.toInts() = map { it.toInt() }
 fun String.splitToInts() = this.trim().split(' ').toInts()
+
+inline fun <T> Iterable<T>.productOf(selector: (T) -> Long): Long = fold(1L) { acc, i -> acc * selector(i) }
+fun IntRange.span() = last - first + 1
+fun LongRange.span() = last - first + 1
 
 fun Int.pow(exp: Int): Long {
     var result = 1L
