@@ -77,7 +77,10 @@ class DayBuilder<Out>(day: Int) {
             part2?.runCheck(test2)
         }
 
-        val input = readInput(name)
+        val input = Path("src/${name}.txt").takeIf { it.exists() }?.readLines() ?: run {
+            println("ERROR: No input for $name defined")
+            exitProcess(1)
+        }
         println("Day $name")
         part1?.run(input)
         part2?.run(input)
