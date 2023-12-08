@@ -8,7 +8,7 @@ fun main() = day(1) {
             .fold(0) { s, v -> s + v }
     }
 
-    part2(check = 281) { input ->
+    part2(checks = mapOf("test2" to 281)) { input ->
         val namedDigits = listOf(
             "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"
         )

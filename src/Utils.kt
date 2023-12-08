@@ -1,13 +1,14 @@
 import java.math.BigInteger
 import java.security.MessageDigest
 import kotlin.io.path.Path
+import kotlin.io.path.exists
 import kotlin.io.path.readLines
 
 
 /**
  * Reads lines from the given input txt file.
  */
-fun readInput(name: String) = Path("src/$name.txt").readLines()
+fun readInput(name: String) = Path("src/$name.txt").takeIf { it.exists() }?.readLines()
 
 /**
  * Converts string to md5 hash.
@@ -60,4 +61,8 @@ fun Long.toIntOrThrow(): Int {
     } else {
         throw ArithmeticException("Value too large to fit in an Int")
     }
+}
+
+fun wtf(message: String? = null): Nothing {
+    throw Exception("What a terrible failure" + message?.let { ": $it" })
 }

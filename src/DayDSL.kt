@@ -1,6 +1,3 @@
-import kotlin.io.path.Path
-import kotlin.io.path.exists
-import kotlin.io.path.readLines
 import kotlin.system.exitProcess
 
 fun <Out> day(day: Int, body: DayBuilder<Out>.() -> Unit) {
@@ -11,7 +8,7 @@ fun <Out> day(day: Int, body: DayBuilder<Out>.() -> Unit) {
 
 typealias Input = List<String>
 
-class Part<Out>(val name: String, val check: Out? = null, val body: (Input) -> Out) {
+class Part<Out>(val dayName: String, val name: String, val checks: Map<String, Out>?, val body: (Input) -> Out) {
     fun run(input: List<String>) {
         println("\n\n")
         val header = "Running $name"
@@ -24,24 +21,27 @@ class Part<Out>(val name: String, val check: Out? = null, val body: (Input) -> O
         println("╰${"─".repeat(message.length + 4)}╯")
     }
 
-    fun runCheck(input: Input?) {
-        if (input == null) {
-            println("WARNING: No test input for $name")
-            exitProcess(1)
-        }
-        if (check == null) {
+    fun runChecks() {
+        if (checks == null) {
             println("WARNING: No test check for $name")
             exitProcess(1)
         }
-        println("\n\nDoing $name test run")
-        val result = body(input)
-        if (result == check) {
-            println("[✔] $name test passed ($result)")
-        } else {
-            println("[✘] $name failed test")
-            println("Expected: $check")
-            println("Actual:   $result")
-            exitProcess(1)
+
+        checks.forEach { (testFile, check) ->
+            val input = readInput("${dayName}_${testFile}") ?: run {
+                println("WARNING: No test input for $name $testFile")
+                exitProcess(1)
+            }
+            println("\n\nDoing $name test run '$testFile'")
+            val result = body(input)
+            if (result == check) {
+                println("[✔] $name test '$testFile' passed ($result)")
+            } else {
+                println("[✘] $name failed test '$testFile'")
+                println("Expected: $check")
+                println("Actual:   $result")
+                exitProcess(1)
+            }
         }
     }
 }
@@ -49,35 +49,37 @@ class Part<Out>(val name: String, val check: Out? = null, val body: (Input) -> O
 class DayBuilder<Out>(day: Int) {
     val name = "Day${day.toString().padStart(2, '0')}"
 
-    private var part1: Part<Out>? = null
-    private var part2: Part<Out>? = null
+    inner class PartBuilder(val partName: String) {
+        var part: Part<Out>? = null
 
-    fun part1(check: Out? = null, body: (Input) -> Out) {
-        part1 = Part("$name Part 1", check = check, body)
-    }
-
-    fun <In> part1(check: Out? = null, parser: (Input) -> In, body: (In) -> Out) {
-        part1(check = check) { input -> body(parser(input)) }
-    }
-
-    fun part2(check: Out? = null, body: (Input) -> Out) {
-        part2 = Part("$name Part 2", check = check, body)
-    }
-
-    fun <In> part2(check: Out? = null, parser: (Input) -> In, body: (In) -> Out) {
-        part2(check = check) { input -> body(parser(input)) }
-    }
-
-    operator fun invoke() {
-        if (part1?.check != null || part2?.check != null) {
-            val test1 = Path("src/${name}_test.txt").takeIf { it.exists() }?.readLines()
-            part1?.runCheck(test1)
-
-            val test2 = Path("src/${name}_test2.txt").takeIf { it.exists() }?.readLines() ?: test1
-            part2?.runCheck(test2)
+        operator fun invoke(checks: Map<String, Out>?, body: (Input) -> Out) {
+            part = Part(name, "$name $partName", checks, body)
         }
 
-        val input = Path("src/${name}.txt").takeIf { it.exists() }?.readLines() ?: run {
+        operator fun invoke(check: Out? = null, body: (Input) -> Out) {
+            this(checks = check?.let { mapOf("test" to it) }, body)
+        }
+
+        operator fun <In> invoke(checks: Map<String, Out>? = null, parser: (Input) -> In, body: (In) -> Out) {
+            this(checks = checks) { input -> body(parser(input)) }
+        }
+
+        operator fun <In> invoke(check: Out?, parser: (Input) -> In, body: (In) -> Out) {
+            this(checks = check?.let { mapOf("test" to it) }, parser, body)
+        }
+    }
+
+    val part1 = PartBuilder("Part 1")
+    val part2 = PartBuilder("Part 2")
+
+    operator fun invoke() {
+        val part1 = this.part1.part
+        val part2 = this.part2.part
+
+        part1?.runChecks()
+        part2?.runChecks()
+
+        val input = readInput(name) ?: run {
             println("ERROR: No input for $name defined")
             exitProcess(1)
         }
