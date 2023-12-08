@@ -63,6 +63,9 @@ fun Long.toIntOrThrow(): Int {
     }
 }
 
+fun <T> Sequence<T>.repeatIndefinitely() = sequence { while (true) yieldAll(this@repeatIndefinitely) }
+fun <T> Iterable<T>.repeatIndefinitely() = sequence { while (true) yieldAll(this@repeatIndefinitely) }
+
 fun wtf(message: String? = null): Nothing {
     throw Exception("What a terrible failure" + message?.let { ": $it" })
 }
