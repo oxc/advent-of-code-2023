@@ -4,6 +4,18 @@ package util.matrix
 
 typealias Fields<T> = ArrayList<ArrayList<Field<T>>>
 
+fun interface Highlight {
+    fun highlightCode(field: Field<*>): String?
+
+    companion object {
+        val NONE = Highlight { null }
+
+        fun fields(fields: Set<Field<*>>, code: String) = Highlight {
+            if (it in fields) code else null
+        }
+    }
+}
+
 class BaseMatrix<T>(
     values: List<List<T>>,
     private val padValue: T
@@ -79,7 +91,10 @@ abstract class AbstractMatrix<T>(
         }
     }
 
-    abstract fun print(stringBuilder: StringBuilder = StringBuilder()): StringBuilder
+    abstract fun print(
+        highlight: Highlight = Highlight.NONE,
+        stringBuilder: StringBuilder = StringBuilder()
+    ): StringBuilder
 }
 
 class Matrix<T>(baseMatrix: BaseMatrix<T>, minX: Int, minY: Int, maxX: Int, maxY: Int) :
@@ -98,9 +113,9 @@ class Matrix<T>(baseMatrix: BaseMatrix<T>, minX: Int, minY: Int, maxX: Int, maxY
         return lines().asSequence().flatMap { it.scanAll(predicate = predicate) }
     }
 
-    override fun print(stringBuilder: StringBuilder): StringBuilder {
+    override fun print(highlight: Highlight, stringBuilder: StringBuilder): StringBuilder {
         lines().forEach {
-            it.print(stringBuilder)
+            it.print(highlight, stringBuilder)
             stringBuilder.append('\n')
         }
         return stringBuilder
@@ -123,6 +138,26 @@ class Matrix<T>(baseMatrix: BaseMatrix<T>, minX: Int, minY: Int, maxX: Int, maxY
 
 }
 
+interface BaseDelta {
+    val x: Int
+    val y: Int
+    operator fun plus(delta: Delta) = Delta(x + delta.x, y + delta.y)
+}
+
+data class Delta(override val x: Int, override val y: Int) : BaseDelta {
+    constructor(delta: BaseDelta) : this(delta.x, delta.y)
+}
+
+enum class Direction(override val x: Int, override val y: Int) : BaseDelta {
+    Left(-1, 0), Top(0, -1), Right(1, 0), Bottom(0, 1);
+
+    fun next(n: Int = 1) {
+        entries[(this.ordinal + n) % 4]
+    }
+
+    fun asDelta() = Delta(this)
+}
+
 open class Line<T>(
     baseMatrix: BaseMatrix<T>,
     val y: Int,
@@ -135,9 +170,9 @@ open class Line<T>(
     minY = y,
     maxY = y,
 ) {
-    override fun print(stringBuilder: StringBuilder): StringBuilder {
+    override fun print(highlight: Highlight, stringBuilder: StringBuilder): StringBuilder {
         this.asSequence().forEach {
-            it.print(stringBuilder)
+            it.print(highlight, stringBuilder)
         }
         return stringBuilder
     }
@@ -192,21 +227,25 @@ class Field<T>(
     minY = y,
     maxY = y,
 ) {
-    val left get() = get(-1, 0)
+
+    operator fun get(delta: BaseDelta) = get(delta.x, delta.y)
+
+    val left get() = get(Direction.Left)
     val topLeft get() = get(-1, -1)
-    val top get() = get(0, -1)
+    val top get() = get(Direction.Top)
     val topRight get() = get(1, -1)
-    val right get() = get(1, 0)
+    val right get() = get(Direction.Right)
     val bottomRight get() = get(1, 1)
-    val bottom get() = get(0, 1)
+    val bottom get() = get(Direction.Bottom)
     val bottomLeft get() = get(-1, 1)
 
     val directNeighbours get() = listOf(left, top, right, bottom)
     val diagonalNeighbours get() = listOf(topLeft, topRight, bottomLeft, bottomRight)
     val allNeighbours get() = listOf(left, topLeft, top, topRight, right, bottomRight, bottom, bottomLeft)
 
-    override fun print(stringBuilder: StringBuilder): StringBuilder {
-        return stringBuilder.append(value)
+    override fun print(highlight: Highlight, stringBuilder: StringBuilder): StringBuilder {
+        val code = highlight.highlightCode(this) ?: return stringBuilder.append(value)
+        return stringBuilder.append("\u001b[${code}m$value\u001b[0m")
     }
 
     override fun hashCode(): Int {
