@@ -117,7 +117,6 @@ fun main() = day(10) {
         fun markOutsides() {
             while (outsides.isNotEmpty()) {
                 val field = outsides.pop()
-                matrix.println { if (it == field) "41;1" else null }
                 field.directNeighbours.forEach { neighbour ->
                     neighbour.markAsOutsideIfUnknown()
                 }
@@ -158,33 +157,14 @@ fun main() = day(10) {
             .run {
 
                 // we know this field has an outside neighbor, so if any of the left ones is outside, all are
-                val clockwiseLeftOfLoop = clockwiseLeftOfLoop()
-                val leftIsOutside = clockwiseLeftOfLoop.any { it.value.location == Location.Outside }
-
-                println()
-                println("leftIsOutside = $leftIsOutside")
-                matrix.println {
-                    when {
-                        it == second -> "42;1"
-                        it in clockwiseLeftOfLoop -> "43;1"
-                        else -> null
-                    }
-                }
+                val leftIsOutside = clockwiseLeftOfLoop().any { it.value.location == Location.Outside }
 
                 // we want to mark all left fields as outside, so reverse the loop if necessary
                 if (leftIsOutside) loop else loop.reversed()
             }
 
         clockwiseLeftOutsideLoop.zipWithNext().forEach { loopField ->
-            val clockwiseLeftOfLoop = loopField.clockwiseLeftOfLoop()
-            matrix.println() {
-                when {
-                    it == loopField.second -> "41;1"
-                    it in clockwiseLeftOfLoop -> "43;1"
-                    else -> null
-                }
-            }
-            clockwiseLeftOfLoop.forEach {
+            loopField.clockwiseLeftOfLoop().forEach {
                 it.markAsOutsideIfUnknown()
             }
         }
