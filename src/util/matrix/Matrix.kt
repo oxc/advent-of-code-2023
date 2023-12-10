@@ -1,3 +1,5 @@
+package util.matrix
+
 typealias Fields<T> = ArrayList<ArrayList<Field<T>>>
 
 class BaseMatrix<T>(

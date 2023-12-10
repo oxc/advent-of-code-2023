@@ -1,3 +1,7 @@
+import util.matrix.CharField
+import util.matrix.CharLine
+import util.matrix.asString
+
 fun main() = day(3) {
     fun CharLine.isPartNumber() = grow(1).asSequence().any { it.value != '.' && !it.value.isDigit() }
     fun CharLine.toInt() = asString().toInt()
