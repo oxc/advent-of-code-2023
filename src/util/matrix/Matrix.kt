@@ -1,3 +1,5 @@
+@file:Suppress("MemberVisibilityCanBePrivate")
+
 package util.matrix
 
 typealias Fields<T> = ArrayList<ArrayList<Field<T>>>
@@ -110,7 +112,11 @@ class Matrix<T>(baseMatrix: BaseMatrix<T>, minX: Int, minY: Int, maxX: Int, maxY
 
     companion object {
         fun fromLines(lines: List<String>, padChar: Char = '.'): Matrix<Char> {
-            val base = BaseMatrix(lines.map { it.toList() }, padChar)
+            return fromLines(lines, padChar) { it };
+        }
+
+        fun <T> fromLines(lines: List<String>, padElement: T? = null, mapper: (Char) -> T): Matrix<T> {
+            val base = BaseMatrix(lines.map { it.toList().map(mapper) }, padElement ?: mapper('.'))
             return Matrix(base, 0, 0, base.width - 1, base.height - 1)
         }
     }
@@ -186,6 +192,19 @@ class Field<T>(
     minY = y,
     maxY = y,
 ) {
+    val left get() = get(-1, 0)
+    val topLeft get() = get(-1, -1)
+    val top get() = get(0, -1)
+    val topRight get() = get(1, -1)
+    val right get() = get(1, 0)
+    val bottomRight get() = get(1, 1)
+    val bottom get() = get(0, 1)
+    val bottomLeft get() = get(-1, 1)
+
+    val directNeighbours get() = listOf(left, top, right, bottom)
+    val diagonalNeighbours get() = listOf(topLeft, topRight, bottomLeft, bottomRight)
+    val allNeighbours get() = listOf(left, topLeft, top, topRight, right, bottomRight, bottom, bottomLeft)
+
     override fun print(stringBuilder: StringBuilder): StringBuilder {
         return stringBuilder.append(value)
     }
@@ -200,7 +219,8 @@ class Field<T>(
     }
 
     override fun toString(): String {
-        return "Field(x=$x, y=$x, value=$value)"
+        if (isOutOfBounds) return "Field(x=$x, y=$y, out of bounds)"
+        return "Field(x=$x, y=$y, value=$value)"
     }
 }
 
