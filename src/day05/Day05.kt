@@ -1,3 +1,8 @@
+package day05
+
+import day
+import util.parse.splitToLongs
+import util.parse.toLongs
 import java.util.*
 
 typealias Category = String

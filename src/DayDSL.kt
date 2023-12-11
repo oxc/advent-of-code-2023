@@ -1,3 +1,6 @@
+import kotlin.io.path.Path
+import kotlin.io.path.exists
+import kotlin.io.path.readLines
 import kotlin.system.exitProcess
 
 fun <Out> day(day: Int, body: DayBuilder<Out>.() -> Unit) {
@@ -7,6 +10,12 @@ fun <Out> day(day: Int, body: DayBuilder<Out>.() -> Unit) {
 }
 
 typealias Input = List<String>
+
+/**
+ * Reads lines from the given input txt file.
+ */
+fun readInput(dayName: String, suffix: String = "") =
+    Path("src/${dayName.lowercase()}/$dayName$suffix.txt").takeIf { it.exists() }?.readLines()
 
 class Part<Out>(val dayName: String, val name: String, val checks: Map<String, Out>?, val body: (Input) -> Out) {
     fun run(input: List<String>) {
@@ -28,7 +37,7 @@ class Part<Out>(val dayName: String, val name: String, val checks: Map<String, O
         }
 
         checks.forEach { (testFile, check) ->
-            val input = readInput("${dayName}_${testFile}") ?: run {
+            val input = readInput(dayName, "_$testFile") ?: run {
                 println("WARNING: No test input for $name $testFile")
                 exitProcess(1)
             }

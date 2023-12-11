@@ -1,9 +1,16 @@
+package day04
+
+import day
+import println
+import util.number.pow
+import util.number.toIntOrThrow
+
 fun main() = day(4) {
     data class Card(val id: Int, val winningNumbers: Set<Number>, val numbers: Set<Number>)
 
     fun parseCard(line: String): Card {
         val (sCard, sNumbers) = line.split(':')
-        val gameId = sCard.removePrefix("Card").trim().toInt()
+        val gameId = sCard.removePrefix("day07.Card").trim().toInt()
         val (winningNumbers, numbers) = sNumbers.split("|", limit = 2).map {
             it.trim().split("""\s+""".toRegex()).map { sNumber ->
                 sNumber.trim().toInt()

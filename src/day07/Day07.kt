@@ -1,3 +1,7 @@
+package day07
+
+import day
+
 @JvmInline
 value class Card(val label: Char) {
     override fun toString() = label.toString()

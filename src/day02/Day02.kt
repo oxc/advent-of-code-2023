@@ -1,3 +1,8 @@
+package day02
+
+import day
+import println
+
 enum class Color {
     red, green, blue
 }

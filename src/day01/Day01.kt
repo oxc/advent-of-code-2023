@@ -1,3 +1,7 @@
+package day01
+
+import day
+
 fun main() = day(1) {
     part1(check = 142) { input ->
         input

@@ -1,3 +1,10 @@
+package day08
+
+import day
+import println
+import util.collection.repeatIndefinitely
+import wtf
+
 typealias Direction = Char
 typealias Node = String
 

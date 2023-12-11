@@ -1,3 +1,8 @@
+package day09
+
+import day
+import util.parse.splitToLongs
+
 typealias History = List<Long>
 
 fun main() = day(9) {

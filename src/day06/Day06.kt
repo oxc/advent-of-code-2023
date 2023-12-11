@@ -1,3 +1,10 @@
+package day06
+
+import day
+import util.collection.productOf
+import util.number.span
+import util.parse.WHITESPACE
+import util.parse.splitToLongs
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.pow

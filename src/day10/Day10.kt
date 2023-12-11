@@ -1,5 +1,10 @@
+package day10
+
+import day
+import println
 import util.matrix.Field
 import util.matrix.Matrix
+import wtf
 import java.util.*
 
 typealias M = Matrix<PipeField>
