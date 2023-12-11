@@ -1,4 +1,4 @@
-import util.matrix.AbstractMatrix
+import util.matrix.AbstractMatrixElement
 import util.matrix.Highlight
 import java.math.BigInteger
 import java.security.MessageDigest
@@ -18,7 +18,7 @@ fun <T : Any?> T.println(): T {
     return this
 }
 
-fun <T : AbstractMatrix<*>> T.println(highlight: Highlight = Highlight.NONE): T {
+fun <T : AbstractMatrixElement<*>> T.println(highlight: Highlight = Highlight.NONE): T {
     println(this.print(highlight))
     return this
 }
