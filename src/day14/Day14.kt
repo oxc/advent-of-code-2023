@@ -56,6 +56,13 @@ fun Dish.tilt(direction: Direction) {
     }
 }
 
+fun Dish.spin() {
+    tilt(Direction.Top)
+    tilt(Direction.Left)
+    tilt(Direction.Bottom)
+    tilt(Direction.Right)
+}
+
 fun Dish.load() = asSequence().filter { it.value.value == 'O' }.sumOf { point ->
     height - point.y
 }
@@ -72,4 +79,32 @@ fun main() = day(14) {
         dish.load()
     }
 
+    part2(check = 64, ::parseDish) { dish ->
+        val loads = mutableListOf<Int>()
+
+        fun findCycleLength(): Int {
+            spin@ do {
+                dish.spin()
+                dish.println()
+                loads += dish.load().println()
+
+                // calculate some rounds
+                if (loads.size < 100) continue
+
+                for (i in 1..(loads.size / 3)) {
+                    val (a, b, c) = loads.reversed().chunked(i)
+                    if (a == b && b == c) {
+                        return a.size
+                    }
+                }
+            } while (true)
+        }
+
+        val cycleLength = findCycleLength()
+
+        val offset = (1_000_000_000 - loads.size - 1) % cycleLength
+
+        val cycle = loads.takeLast(cycleLength).println()
+        cycle[offset]
+    }
 }
