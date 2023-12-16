@@ -108,6 +108,8 @@ fun Contraption.reset() {
     }
 }
 
+fun Contraption.fieldsEnergized() = asSequence().count { it.value.energy > 0 }
+
 fun main() = day(16) {
 
     fun parseContraption(input: List<String>) = Matrix.fromLines(input) {
@@ -126,7 +128,21 @@ fun main() = day(16) {
     part1(check = 46, ::parseContraption) { contraption ->
         contraption.sendLight(0, 0, Direction.Right)
 
-        contraption.asSequence().count { it.value.energy > 0 }
+        contraption.fieldsEnergized()
     }
 
+    part2(check = 51, ::parseContraption) { contraption ->
+        sequenceOf(
+            contraption.row(0) to Direction.Bottom,
+            contraption.column(0) to Direction.Right,
+            contraption.row(contraption.height - 1) to Direction.Top,
+            contraption.column(contraption.width - 1) to Direction.Left,
+        ).flatMap { (elems, direction) -> elems.asSequence().map { it to direction } }
+            .maxOf { (field, direction) ->
+                contraption.sendLight(field.x, field.y, direction)
+                contraption.fieldsEnergized().also {
+                    contraption.reset()
+                }
+            }
+    }
 }
