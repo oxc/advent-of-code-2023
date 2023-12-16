@@ -7,13 +7,13 @@ import kotlin.math.absoluteValue
 
 typealias Fields<T> = ArrayList<ArrayList<Field<T>>>
 
-fun interface Highlight {
-    fun highlightCode(field: Field<*>): String?
+fun interface Highlight<T> {
+    fun highlightCode(field: Field<T>): String?
 
     companion object {
-        val NONE = Highlight { null }
+        fun <T> none() = Highlight<T> { null }
 
-        fun fields(fields: Set<Field<*>>, code: String) = Highlight {
+        fun <T> fields(fields: Set<Field<T>>, code: String) = Highlight<T> {
             if (it in fields) code else null
         }
     }
@@ -143,7 +143,7 @@ abstract class AbstractMatrixElement<T>(
     }
 
     abstract fun print(
-        highlight: Highlight = Highlight.NONE,
+        highlight: Highlight<T> = Highlight.none(),
         stringBuilder: StringBuilder = StringBuilder()
     ): StringBuilder
 }
@@ -188,7 +188,7 @@ class Matrix<T>(
         return rows().asSequence().flatMap { it.scanAll(predicate = predicate) }
     }
 
-    override fun print(highlight: Highlight, stringBuilder: StringBuilder): StringBuilder {
+    override fun print(highlight: Highlight<T>, stringBuilder: StringBuilder): StringBuilder {
         rows().forEach {
             it.print(highlight, stringBuilder)
             stringBuilder.append('\n')
@@ -254,7 +254,7 @@ class HLine<T>(
 
     val y get() = minY
 
-    override fun print(highlight: Highlight, stringBuilder: StringBuilder): StringBuilder {
+    override fun print(highlight: Highlight<T>, stringBuilder: StringBuilder): StringBuilder {
         this.asSequence().forEach {
             it.print(highlight, stringBuilder)
         }
@@ -307,7 +307,7 @@ class VLine<T>(
 
     val x get() = minX
 
-    override fun print(highlight: Highlight, stringBuilder: StringBuilder): StringBuilder {
+    override fun print(highlight: Highlight<T>, stringBuilder: StringBuilder): StringBuilder {
         this.asSequence().forEach {
             it.print(highlight, stringBuilder)
         }
@@ -364,7 +364,7 @@ class Field<T>(
 
     operator fun minus(field: Field<T>) = Delta(x - field.x, y - field.y)
 
-    override fun print(highlight: Highlight, stringBuilder: StringBuilder): StringBuilder {
+    override fun print(highlight: Highlight<T>, stringBuilder: StringBuilder): StringBuilder {
         val code = highlight.highlightCode(this) ?: return stringBuilder.append(value)
         return stringBuilder.append("\u001b[${code}m$value\u001b[0m")
     }

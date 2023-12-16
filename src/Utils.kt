@@ -18,7 +18,7 @@ fun <T : Any?> T.println(): T {
     return this
 }
 
-fun <T : AbstractMatrixElement<*>> T.println(highlight: Highlight = Highlight.NONE): T {
+fun <T : AbstractMatrixElement<F>, F> T.println(highlight: Highlight<F> = Highlight.none()): T {
     println(this.print(highlight))
     return this
 }
