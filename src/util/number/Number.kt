@@ -17,3 +17,13 @@ fun Long.toIntOrThrow(): Int {
         throw ArithmeticException("Value too large to fit in an Int")
     }
 }
+
+infix fun Int.absmod(mod: Int): Int {
+    return (this % mod).let { if (it < 0) it + mod else it }
+}
+
+fun main() {
+    check(3 absmod 4 == 3)
+    check(-3 absmod 4 == 1)
+    check(-7 absmod 4 == 1)
+}

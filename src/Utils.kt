@@ -1,5 +1,6 @@
 import util.matrix.AbstractMatrixElement
 import util.matrix.Highlight
+import util.matrix.Printer
 import java.math.BigInteger
 import java.security.MessageDigest
 
@@ -18,8 +19,11 @@ fun <T : Any?> T.println(): T {
     return this
 }
 
-fun <T : AbstractMatrixElement<F>, F> T.println(highlight: Highlight<F> = Highlight.none()): T {
-    println(this.print(highlight))
+fun <T : AbstractMatrixElement<F>, F> T.println(
+    printer: Printer<F> = Printer.default(),
+    highlight: Highlight<F> = Highlight.none(),
+): T {
+    println(this.print(printer, highlight))
     return this
 }
 

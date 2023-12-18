@@ -3,6 +3,7 @@
 package util.matrix
 
 import println
+import util.number.absmod
 import kotlin.math.absoluteValue
 
 typealias Fields<T> = ArrayList<ArrayList<Field<T>>>
@@ -16,6 +17,16 @@ fun interface Highlight<T> {
         fun <T> fields(fields: Set<Field<T>>, code: String) = Highlight<T> {
             if (it in fields) code else null
         }
+    }
+}
+
+fun interface Printer<T> {
+    fun T.print(): String
+
+    companion object {
+        fun <T> default(): Printer<T> = Printer { toString() }
+
+        fun <T> width(width: Int, print: T.() -> String) = Printer<T> { print().padStart(width) }
     }
 }
 
@@ -143,6 +154,7 @@ abstract class AbstractMatrixElement<T>(
     }
 
     abstract fun print(
+        printer: Printer<T> = Printer.default(),
         highlight: Highlight<T> = Highlight.none(),
         stringBuilder: StringBuilder = StringBuilder()
     ): StringBuilder
@@ -188,9 +200,9 @@ class Matrix<T>(
         return rows().asSequence().flatMap { it.scanAll(predicate = predicate) }
     }
 
-    override fun print(highlight: Highlight<T>, stringBuilder: StringBuilder): StringBuilder {
+    override fun print(printer: Printer<T>, highlight: Highlight<T>, stringBuilder: StringBuilder): StringBuilder {
         rows().forEach {
-            it.print(highlight, stringBuilder)
+            it.print(printer, highlight, stringBuilder)
             stringBuilder.append('\n')
         }
         return stringBuilder
@@ -231,14 +243,21 @@ data class Delta(override val x: Int, override val y: Int) : BaseDelta {
     constructor(delta: BaseDelta) : this(delta.x, delta.y)
 }
 
-enum class Direction(override val x: Int, override val y: Int) : BaseDelta {
-    Left(-1, 0), Top(0, -1), Right(1, 0), Bottom(0, 1);
+enum class Direction(override val x: Int, override val y: Int, val arrow: Char) : BaseDelta {
+    Left(-1, 0, '←'), Top(0, -1, '↑'), Right(1, 0, '→'), Bottom(0, 1, '↓');
 
-    fun next(n: Int = 1) {
-        entries[(this.ordinal + n) % 4]
-    }
+    fun previous(n: Int = 1): Direction = next(-n)
+    fun next(n: Int = 1): Direction = entries[(this.ordinal + n) absmod 4]
+
+    fun opposite(): Direction = next(2)
 
     fun asDelta() = Delta(this)
+
+    companion object {
+        fun except(dir: Direction): List<Direction> {
+            return entries - dir
+        }
+    }
 }
 
 class HLine<T>(
@@ -254,9 +273,9 @@ class HLine<T>(
 
     val y get() = minY
 
-    override fun print(highlight: Highlight<T>, stringBuilder: StringBuilder): StringBuilder {
+    override fun print(printer: Printer<T>, highlight: Highlight<T>, stringBuilder: StringBuilder): StringBuilder {
         this.asSequence().forEach {
-            it.print(highlight, stringBuilder)
+            it.print(printer, highlight, stringBuilder)
         }
         return stringBuilder
     }
@@ -307,9 +326,9 @@ class VLine<T>(
 
     val x get() = minX
 
-    override fun print(highlight: Highlight<T>, stringBuilder: StringBuilder): StringBuilder {
+    override fun print(printer: Printer<T>, highlight: Highlight<T>, stringBuilder: StringBuilder): StringBuilder {
         this.asSequence().forEach {
-            it.print(highlight, stringBuilder)
+            it.print(printer, highlight, stringBuilder)
         }
         return stringBuilder
     }
@@ -359,14 +378,15 @@ class Field<T>(
     val bottomLeft get() = get(-1, 1)
 
     val directNeighbours get() = listOf(left, top, right, bottom)
-    val diagonalNeighbours get() = listOf(topLeftField, topRight, bottomLeft, bottomRightField)
-    val allNeighbours get() = listOf(left, topLeftField, top, topRight, right, bottomRightField, bottom, bottomLeft)
+    val diagonalNeighbours get() = listOf(topLeft, topRight, bottomLeft, bottomRight)
+    val allNeighbours get() = listOf(left, topLeft, top, topRight, right, bottomRight, bottom, bottomLeft)
 
     operator fun minus(field: Field<T>) = Delta(x - field.x, y - field.y)
 
-    override fun print(highlight: Highlight<T>, stringBuilder: StringBuilder): StringBuilder {
-        val code = highlight.highlightCode(this) ?: return stringBuilder.append(value)
-        return stringBuilder.append("\u001b[${code}m$value\u001b[0m")
+    override fun print(printer: Printer<T>, highlight: Highlight<T>, stringBuilder: StringBuilder): StringBuilder {
+        val repr = with(printer) { value.print() }
+        val code = highlight.highlightCode(this) ?: return stringBuilder.append(repr)
+        return stringBuilder.append("\u001b[${code}m$repr\u001b[0m")
     }
 
     override fun hashCode(): Int {
