@@ -82,135 +82,13 @@ fun HeatMap.fillNeighbours(
 
     if (updatedNeighbours.isNotEmpty()) {
         queue.addAll(updatedNeighbours)
-        if (debug && field.x == 0 && field.y == 0) {
-            routes.println()
-            printShortestRoutes {
-                when {
-                    it == field -> "41;1"
-                    it in updatedNeighbours -> "42;1"
-                    it.value.routes.isNotEmpty() -> "43;1"
-                    else -> null
-                }
-
-            }
-        }
     }
-}
-
-fun Point.validRouteStarts(): List<Map.Entry<RouteStart, Int>> {
-    return routes.entries.filter { it.key.stepsInThatDirection == 1 }
 }
 
 fun HeatMap.printShortestRoutes(highlight: Highlight<Point> = Highlight.none()) {
     println(printer = {
         (value.routes.values.minOrNull()?.toString() ?: "?").padStart(4)
     }, highlight)
-}
-
-data class RoutePoint(
-    val field: HeatMapPoint,
-    var choice: RouteStart,
-    val choicesRemaining: MutableList<RouteStart> = mutableListOf()
-) {
-    fun nextChoice(): Boolean {
-        choice = choicesRemaining.removeFirstOrNull() ?: return false
-        return true
-    }
-}
-
-fun HeatMap.printOneShortestRoute(steps: IntRange): Int {
-    val seenFields = linkedMapOf<HeatMapPoint, RoutePoint>()
-    val waypoints = ArrayDeque<RoutePoint>()
-    val results = mutableListOf<Int>()
-    fun p() {
-        val current = waypoints.last().field
-        println(printer = {
-            seenFields[this]?.let {
-                "${
-                    value.routes[it.choice].toString().padStart(4)
-                }${it.choice.direction.arrow}${it.choice.stepsInThatDirection}"
-            }
-                ?: ((value.routes.values.minOrNull()?.toString() ?: "?").padStart(4) + "  ")
-        }, {
-            when {
-                it == current -> "41;1"
-                it in seenFields -> "43;1"
-                else -> null
-            }
-        })
-    }
-
-    val target = this.target
-    with(this[0, 0]) {
-        val choices = value.validRouteStarts()
-            .sortedBy { it.value }.println().mapTo(mutableListOf()) { it.key }
-        val choice = choices.removeFirst()
-        RoutePoint(this, choice, choices).also {
-            waypoints += it
-            seenFields[this] = it
-        }
-    }
-
-    tailrec fun backtrack() {
-        println("backtrack")
-        p()
-        if (waypoints.last().nextChoice()) {
-            return
-        }
-        waypoints.removeLast().also {
-            seenFields.remove(it.field)
-        }
-        backtrack()
-    }
-
-    fun RouteStart.goOn() = copy(stepsInThatDirection = stepsInThatDirection + 1)
-    fun RouteStart.turnLeft() = RouteStart(direction = direction.previous(), stepsInThatDirection = 1)
-    fun RouteStart.turnRight() = RouteStart(direction = direction.next(), stepsInThatDirection = 1)
-
-    do {
-        val current = waypoints.last()
-        val comingFrom = current.choice
-        val nextField = current.field[comingFrom.direction]
-
-        if (nextField == target) {
-            val totalLoss = waypoints.drop(1).map { it.field.value.heatLoss } + target.value.heatLoss
-            totalLoss.mapIndexed { i, _ -> totalLoss.drop(i).sum() }.println()
-            results += totalLoss.println().sum().println()
-            p()
-            break
-        }
-
-        val validStarts = when {
-            comingFrom.stepsInThatDirection < steps.first -> listOf(comingFrom.goOn())
-            else -> listOf(comingFrom.goOn(), comingFrom.turnLeft(), comingFrom.turnRight())
-        }
-        val choices = validStarts.mapNotNull { routeStart ->
-            nextField.value.routes[routeStart]?.let { routeStart to it }
-        }
-            .filterNot { nextField[it.first.direction].isOutOfBounds }
-            .sortedWith(compareBy<Pair<RouteStart, Int>> { it.second }.thenBy { it.first.direction })
-            .println()
-            .mapTo(mutableListOf()) { it.first }
-
-        if (choices.isEmpty()) {
-            backtrack()
-            continue
-        }
-
-        val cycle = seenFields[nextField]
-        if (cycle != null) {
-            backtrack()
-            continue
-        }
-
-        val next = RoutePoint(nextField, choices.removeFirst(), choices)
-        seenFields[nextField] = next
-        waypoints += next
-
-        p()
-    } while (waypoints.isNotEmpty())
-
-    return results.println().min().println()
 }
 
 fun main() = day(17) {
@@ -222,7 +100,7 @@ fun main() = day(17) {
     fun HeatMap.shortestRoute(): Int? {
         // apparently, the crucible needs to start to the right. Didn't find that in the description
         // otherwise it would be:
-        // this[0, 0].value.validRouteStarts().minOf { it.value }
+        // this[0, 0].value.entries.filter { it.key.stepsInThatDirection == 1 }.minOf { it.value }
         return this[0, 0].value.routes[(RouteStart(Direction.Right, 1))]
     }
 
