@@ -21,12 +21,12 @@ fun interface Highlight<T> {
 }
 
 fun interface Printer<T> {
-    fun T.print(): String
+    fun Field<T>.printField(): String
 
     companion object {
         fun <T> default(): Printer<T> = Printer { toString() }
 
-        fun <T> width(width: Int, print: T.() -> String) = Printer<T> { print().padStart(width) }
+        fun <T> width(width: Int, printFun: Field<T>.() -> String) = Printer { printFun().padStart(width) }
     }
 }
 
@@ -384,7 +384,7 @@ class Field<T>(
     operator fun minus(field: Field<T>) = Delta(x - field.x, y - field.y)
 
     override fun print(printer: Printer<T>, highlight: Highlight<T>, stringBuilder: StringBuilder): StringBuilder {
-        val repr = with(printer) { value.print() }
+        val repr = with(printer) { printField() }
         val code = highlight.highlightCode(this) ?: return stringBuilder.append(repr)
         return stringBuilder.append("\u001b[${code}m$repr\u001b[0m")
     }
