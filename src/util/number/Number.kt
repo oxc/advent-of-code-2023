@@ -22,6 +22,30 @@ infix fun Int.absmod(mod: Int): Int {
     return (this % mod).let { if (it < 0) it + mod else it }
 }
 
+fun lcm(a: Long, b: Long): Long {
+    val larger = if (a > b) a else b
+    val maxLcm = a * b
+    var lcm = larger
+    while (lcm <= maxLcm) {
+        if (lcm % a == 0L && lcm % b == 0L) {
+            return lcm
+        }
+        lcm += larger
+    }
+    return maxLcm
+}
+
+fun gcd(a: Long, b: Long): Long {
+    var num1 = a
+    var num2 = b
+    while (num2 != 0L) {
+        val temp = num2
+        num2 = num1 % num2
+        num1 = temp
+    }
+    return num1
+}
+
 fun main() {
     check(3 absmod 4 == 3)
     check(-3 absmod 4 == 1)

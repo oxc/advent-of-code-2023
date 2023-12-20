@@ -3,6 +3,7 @@ package day08
 import day
 import println
 import util.collection.repeatIndefinitely
+import util.number.lcm
 import wtf
 
 typealias Direction = Char
@@ -75,20 +76,6 @@ fun main() = day(8) {
             }
             wtf()
         }
-
-        fun lcm(a: Long, b: Long): Long {
-            val larger = if (a > b) a else b
-            val maxLcm = a * b
-            var lcm = larger
-            while (lcm <= maxLcm) {
-                if (lcm % a == 0L && lcm % b == 0L) {
-                    return lcm
-                }
-                lcm += larger
-            }
-            return maxLcm
-        }
-
 
         val startNodes = map.connections.keys.filter { it.endsWith('A') }
         val cycles = startNodes.map { it.findCycle() }
