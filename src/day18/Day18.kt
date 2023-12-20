@@ -2,10 +2,11 @@ package day18
 
 import day
 import println
-import util.matrix.Direction
-import util.matrix.Highlight
-import util.matrix.Matrix
+import util.matrix.*
 import wtf
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.random.Random
 
 data class RGB(val red: UByte, val green: UByte, val blue: UByte) {
     fun toANSI() = "48;2;${red};${green};${blue}"
@@ -26,41 +27,66 @@ class Point(var kind: Kind? = null) {
     }
 }
 
-typealias Terrain = Matrix<Point>
+typealias Terrain = SparseMatrix<Point>
+typealias DigPlan = List<DigPlanEntry>
+typealias Waypoints = List<Waypoint>
 
 val debug = false
 
-val colored = Highlight<Point> {
-    (it.value.kind as? Trench)?.color?.toANSI()
+val colored = Highlight<SparseFieldData<Point>> {
+    (it.innerValue.kind as? Trench)?.color?.toANSI()
 }
 
-private fun Terrain.digTrench(plan: List<DigPlanEntry>) {
-    autoExpand = true
-    var current = this[0, 0]
-    for (step in plan) {
+data class Waypoint(val x: Long, val y: Long) {
+    operator fun plus(delta: BaseDelta) = Waypoint(x = x + delta.x, y = y + delta.y)
+}
+
+private fun DigPlan.buildWayPoints(): Waypoints {
+    var current = Waypoint(0, 0)
+    val waypoints = mutableListOf(current)
+    for (entry in this) {
+        current += (entry.direction * entry.meters)
+        waypoints += current
+    }
+    return waypoints.println()
+}
+
+private fun DigPlan.buildTerrain(waypoints: Waypoints): Terrain {
+    val xs = waypoints.mapTo(sortedSetOf()) { it.x }.println()
+    val ys = waypoints.mapTo(sortedSetOf()) { it.y }.println()
+    val terrain = SparseMatrix.buildSparseMatrix(xs, ys) {
+        Point()
+    }
+    return terrain
+}
+
+private fun Terrain.digTrench(plan: List<DigPlanEntry>, waypoints: Waypoints) {
+    waypoints.zipWithNext().zip(plan) { (a, b), step ->
         if (debug) println("Digging ${step.meters} meter(s) ${step.direction}")
-        repeat(step.meters) {
-            current = current[step.direction]
-            current.value.kind = Trench(step.color)
-            if (debug) println(highlight = colored)
+        val xs = min(a.x, b.x)..max(a.x, b.x)
+        val ys = min(a.y, b.y)..max(a.y, b.y)
+        this[xs, ys].asSequence().forEach {
+            it.innerValue.kind = Trench(step.color)
+            if (debug) matrix.println(highlight = colored)
         }
     }
-    autoExpand = false
 }
 
 private fun Terrain.fillTrench() {
-    val fields = ArrayDeque(grow(1).asSequence().filter { it.isOutOfBounds }.toList())
-    while (fields.isNotEmpty()) {
-        val field = fields.removeFirst()
-        field.value.kind = Outside
-        for (neighbour in field.directNeighbours) {
-            if (!neighbour.isOutOfBounds && neighbour.value.kind == null) {
-                neighbour.value.kind = Outside
-                fields += neighbour
+    with(matrix) {
+        val fields = ArrayDeque(grow(1).asSequence().filter { it.isOutOfBounds }.toList())
+        while (fields.isNotEmpty()) {
+            val field = fields.removeFirst()
+            field.innerValue.kind = Outside
+            for (neighbour in field.directNeighbours) {
+                if (!neighbour.isOutOfBounds && neighbour.innerValue.kind == null) {
+                    neighbour.innerValue.kind = Outside
+                    fields += neighbour
+                }
             }
         }
+        asSequence().filter { it.innerValue.kind == null }.forEach { it.innerValue.kind = Inside }
     }
-    asSequence().filter { it.value.kind == null }.forEach { it.value.kind = Inside }
 }
 
 fun main() = day(18) {
@@ -78,16 +104,43 @@ fun main() = day(18) {
         DigPlanEntry(direction, meters, RGB(r, g, b))
     }
 
-    part1(check = 62, ::parseDigPlan) { plan ->
-        val terrain = Matrix.ofSize(1, 1, ::Point)
+    fun parseFixedDigPlan(input: List<String>) = input.map { line ->
+        val hex = line.split('#').last()
+        val meters = hex.substring(0..<5).toInt(16)
+        val direction = when (hex[5]) {
+            '3' -> Direction.Top
+            '1' -> Direction.Bottom
+            '2' -> Direction.Left
+            '0' -> Direction.Right
+            else -> wtf("Unknown direction $hex")
+        }
+        val (r, g, b) = (1..3).map { Random.nextInt(255).toUByte() }
+        DigPlanEntry(direction, meters, RGB(r, g, b))
+    }
 
-        terrain.digTrench(plan)
+    fun DigPlan.digAndCountArea(): Long {
+        val waypoints = buildWayPoints()
+        val terrain = buildTerrain(waypoints)
+
+        terrain.digTrench(this, waypoints)
         terrain.println(highlight = colored)
 
         terrain.fillTrench()
         terrain.println(highlight = colored)
 
-        terrain.asSequence().count { it.value.kind != Outside }
+        return terrain.matrix.count { it.innerValue.kind != Outside }
     }
+
+
+    part1(check = 62, ::parseDigPlan) { plan ->
+        plan.digAndCountArea()
+    }
+
+
+    part2(check = 952408144115L, ::parseFixedDigPlan) { plan ->
+        plan.digAndCountArea()
+    }
+
+
 }
 

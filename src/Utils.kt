@@ -1,6 +1,4 @@
-import util.matrix.AbstractMatrixElement
-import util.matrix.Highlight
-import util.matrix.Printer
+import util.matrix.*
 import java.math.BigInteger
 import java.security.MessageDigest
 
@@ -24,6 +22,14 @@ fun <T : AbstractMatrixElement<F>, F> T.println(
     highlight: Highlight<F> = Highlight.none(),
 ): T {
     println(this.print(printer, highlight))
+    return this
+}
+
+fun <T : SparseMatrix<F>, F> T.println(
+    printer: Printer<SparseFieldData<F>> = Printer.default(),
+    highlight: Highlight<SparseFieldData<F>> = Highlight.none(),
+): T {
+    matrix.println(printer, highlight)
     return this
 }
 

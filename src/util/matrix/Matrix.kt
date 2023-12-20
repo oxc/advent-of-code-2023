@@ -6,7 +6,7 @@ import util.number.absmod
 import kotlin.math.absoluteValue
 
 typealias Fields<T> = ArrayList<ArrayList<Field<T>>>
-typealias DefaultValue<T> = () -> T
+typealias DefaultValue<T> = BaseDelta.() -> T
 
 fun interface Highlight<T> {
     fun highlightCode(field: Field<T>): String?
@@ -59,7 +59,7 @@ class BaseMatrix<T>(
             expand(left = left, top = top, right = right, bottom = bottom)
             return fields[y.coerceAtLeast(0)][x.coerceAtLeast(0)]
         }
-        return Field(this, x, y, padValue(), isOutOfBounds = true)
+        return Field(this, x, y, Delta(x, y).padValue(), isOutOfBounds = true)
     }
 
 
@@ -88,7 +88,7 @@ class BaseMatrix<T>(
         }
         val newRows = (y + 1..y + rows).map { newY ->
             (0..<width).mapTo(ArrayList(width)) { x ->
-                Field(this, x, newY, newValue())
+                Field(this, x, newY, Delta(x, y).newValue())
             }
         }
         fields.addAll(y + 1, newRows)
@@ -102,7 +102,7 @@ class BaseMatrix<T>(
                 row[col].run { unsafe_setX(this.x + columns) }
             }
             val newFields = (x + 1..x + columns).map { newX ->
-                Field(this, newX, y, newValue())
+                Field(this, newX, y, Delta(newX, y).newValue())
             }
             row.addAll(x + 1, newFields)
         }
@@ -288,7 +288,7 @@ class Matrix<T>(
 
         fun <T> ofSize(width: Int, height: Int, defaultValue: DefaultValue<T>): Matrix<T> {
             val base = BaseMatrix(
-                (0..<height).map { (0..<width).map { defaultValue() } },
+                (0..<height).map { y -> (0..<width).map { x -> Delta(x, y).defaultValue() } },
                 defaultValue,
             )
             return Matrix(base)
