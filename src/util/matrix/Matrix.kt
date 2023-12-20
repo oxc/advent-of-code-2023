@@ -2,11 +2,11 @@
 
 package util.matrix
 
-import println
 import util.number.absmod
 import kotlin.math.absoluteValue
 
 typealias Fields<T> = ArrayList<ArrayList<Field<T>>>
+typealias DefaultValue<T> = () -> T
 
 fun interface Highlight<T> {
     fun highlightCode(field: Field<T>): String?
@@ -24,7 +24,7 @@ fun interface Printer<T> {
     fun Field<T>.printField(): String
 
     companion object {
-        fun <T> default(): Printer<T> = Printer { toString() }
+        fun <T> default(): Printer<T> = Printer { value.toString() }
 
         fun <T> width(width: Int, printFun: Field<T>.() -> String) = Printer { printFun().padStart(width) }
     }
@@ -32,7 +32,8 @@ fun interface Printer<T> {
 
 class BaseMatrix<T>(
     values: List<List<T>>,
-    private val padValue: T
+    private val padValue: DefaultValue<T>,
+    var autoExpand: Boolean = false,
 ) {
 
     private val fields: Fields<T> = values.mapIndexedTo(ArrayList(values.size)) { y, row ->
@@ -50,34 +51,61 @@ class BaseMatrix<T>(
         if (x in 0..<width && y in 0..<height) {
             return fields[y][x]
         }
-        return Field(this, x, y, padValue, isOutOfBounds = true)
+        if (autoExpand) {
+            val left = if (x < 0) -x else 0
+            val top = if (y < 0) -y else 0
+            val right = if (x >= width) x - width + 1 else 0
+            val bottom = if (y >= height) y - height + 1 else 0
+            expand(left = left, top = top, right = right, bottom = bottom)
+            return fields[y.coerceAtLeast(0)][x.coerceAtLeast(0)]
+        }
+        return Field(this, x, y, padValue(), isOutOfBounds = true)
     }
 
-    fun insertRowAfter(y: Int, fill: T?) {
+
+    fun expand(left: Int = 0, top: Int = 0, right: Int = 0, bottom: Int = 0, fill: DefaultValue<T>? = null) {
+        if (top > 0) {
+            insertRowsAfter(-1, top, fill)
+        }
+        if (bottom > 0) {
+            insertRowsAfter(height - 1, bottom, fill)
+        }
+        if (left > 0) {
+            insertColumnsAfter(-1, left, fill)
+        }
+        if (right > 0) {
+            insertColumnsAfter(width - 1, right, fill)
+        }
+    }
+
+
+    fun insertRowsAfter(y: Int, rows: Int = 1, fill: DefaultValue<T>?) {
         val newValue = fill ?: padValue
         for (row in (height - 1).downTo(y + 1)) {
             for (field in fields[row]) {
-                field.run { unsafe_setY(this.y + 1) }
+                field.run { unsafe_setY(this.y + rows) }
             }
         }
-        val newRow = (0..<width).mapTo(ArrayList(width)) { x ->
-            Field(this, x, y + 1, newValue)
+        val newRows = (y + 1..y + rows).map { newY ->
+            (0..<width).mapTo(ArrayList(width)) { x ->
+                Field(this, x, newY, newValue())
+            }
         }
-        fields.add(y + 1, newRow)
-        fields.println()
+        fields.addAll(y + 1, newRows)
     }
 
-    fun insertColumnAfter(x: Int, fill: T?) {
+    fun insertColumnsAfter(x: Int, columns: Int = 1, fill: DefaultValue<T>?) {
         val newValue = fill ?: padValue
         val width = width
         for ((y, row) in fields.withIndex()) {
             for (col in (width - 1).downTo(x + 1)) {
-                row[col].run { unsafe_setX(this.x + 1) }
+                row[col].run { unsafe_setX(this.x + columns) }
             }
-            row.add(x + 1, Field(this, x + 1, y, newValue))
+            val newFields = (x + 1..x + columns).map { newX ->
+                Field(this, newX, y, newValue())
+            }
+            row.addAll(x + 1, newFields)
         }
-        fields.println()
-
     }
 }
 
@@ -110,8 +138,8 @@ abstract class AbstractMatrixElement<T>(
         return VLine(baseMatrix, this[x, ys.first], this[x, ys.last])
     }
 
-    operator fun get(xs: IntRange, ys: IntRange): Matrix<T> {
-        return Matrix(baseMatrix, this[xs.first, ys.first], this[xs.last, ys.last])
+    operator fun get(xs: IntRange, ys: IntRange): SubMatrix<T> {
+        return SubMatrix(baseMatrix, this[xs.first, ys.first], this[xs.last, ys.last])
     }
 
     fun grow(s: Int) = grow(Offset(s, s, s, s))
@@ -120,26 +148,26 @@ abstract class AbstractMatrixElement<T>(
 
     fun grow(l: Int, t: Int, r: Int, b: Int) = grow(Offset(l, t, r, b))
 
-    fun grow(offset: Offset): Matrix<T> {
-        return Matrix(baseMatrix, topLeftField, bottomRightField, offset)
+    fun grow(offset: Offset): SubMatrix<T> {
+        return SubMatrix(baseMatrix, topLeftField, bottomRightField, offset)
     }
 
-    protected fun _baseInsertRowAfter(y: Int, fill: T? = null) {
+    protected fun _baseInsertRowsAfter(y: Int, rows: Int = 1, fill: DefaultValue<T>? = null) {
         check(
             offset == Offset.NONE
                     && width == baseMatrix.width
                     && height == baseMatrix.height
         ) { "Only full projections can be used to add rows" }
-        baseMatrix.insertRowAfter(y = y, fill)
+        baseMatrix.insertRowsAfter(y = y, rows = rows, fill)
     }
 
-    protected fun _baseInsertColumnAfter(x: Int, fill: T? = null) {
+    protected fun _baseInsertColumnsAfter(x: Int, columns: Int = 1, fill: DefaultValue<T>? = null) {
         check(
             offset == Offset.NONE
                     && width == baseMatrix.width
                     && height == baseMatrix.height
         ) { "Only full projections can be used to add columns" }
-        baseMatrix.insertColumnAfter(x = x, fill)
+        baseMatrix.insertColumnsAfter(x = x, columns = columns, fill)
     }
 
 
@@ -160,13 +188,8 @@ abstract class AbstractMatrixElement<T>(
     ): StringBuilder
 }
 
-class Matrix<T>(
-    baseMatrix: BaseMatrix<T>,
-    override val topLeftField: Field<T>,
-    override val bottomRightField: Field<T>,
-    offset: Offset = Offset.NONE
-) : AbstractMatrixElement<T>(baseMatrix, offset) {
-
+abstract class AbstractMatrix<T>(baseMatrix: BaseMatrix<T>, offset: Offset = Offset.NONE) :
+    AbstractMatrixElement<T>(baseMatrix, offset) {
 
     operator fun get(y: Int) = row(y)
 
@@ -187,15 +210,6 @@ class Matrix<T>(
         return (0..<width).map { x -> get(x, 0..<height) }
     }
 
-    fun insertRowAfter(y: Int, fill: T? = null) {
-        _baseInsertRowAfter(y = y, fill)
-    }
-
-    fun insertColumnAfter(x: Int, fill: T? = null) {
-        _baseInsertColumnAfter(x = x, fill)
-    }
-
-
     fun scanAllLines(predicate: (T) -> Boolean): Sequence<HLine<T>> {
         return rows().asSequence().flatMap { it.scanAll(predicate = predicate) }
     }
@@ -207,6 +221,41 @@ class Matrix<T>(
         }
         return stringBuilder
     }
+}
+
+class SubMatrix<T>(
+    baseMatrix: BaseMatrix<T>,
+    override val topLeftField: Field<T>,
+    override val bottomRightField: Field<T>,
+    offset: Offset = Offset.NONE
+) : AbstractMatrix<T>(baseMatrix, offset) {
+
+    override fun toString(): String {
+        return "SubMatrix(${width}x${height}, ${rows()})"
+    }
+}
+
+class Matrix<T>(
+    private val baseMatrix: BaseMatrix<T>,
+) : AbstractMatrix<T>(baseMatrix) {
+
+    override val topLeftField get() = baseMatrix[0, 0]
+    override val bottomRightField get() = baseMatrix[baseMatrix.width - 1, baseMatrix.height - 1]
+
+    var autoExpand
+        get() = baseMatrix.autoExpand
+        set(value) {
+            baseMatrix.autoExpand = value
+        }
+
+    fun insertRowsAfter(y: Int, rows: Int = 1, fill: DefaultValue<T>? = null) {
+        _baseInsertRowsAfter(y = y, rows = rows, fill)
+    }
+
+    fun insertColumnsAfter(x: Int, columns: Int = 1, fill: DefaultValue<T>? = null) {
+        _baseInsertColumnsAfter(x = x, columns = columns, fill)
+    }
+
 
     override fun toString(): String {
         return "Matrix(${width}x${height}, ${rows()})"
@@ -214,21 +263,45 @@ class Matrix<T>(
 
     companion object {
         fun fromLines(lines: List<String>, padChar: Char = '.'): Matrix<Char> {
-            return fromLines(lines, padChar) { it };
+            return fromLines(lines, { padChar }) { it }
         }
 
-        fun <T> fromLines(lines: List<String>, padElement: T? = null, mapper: (Char) -> T): Matrix<T> {
-            val base = BaseMatrix(lines.map { it.toList().map(mapper) }, padElement ?: mapper('.'))
-            return Matrix(base, base[0, 0], base[base.width - 1, base.height - 1])
+        fun <T> fromLines(
+            lines: List<String>,
+            padElement: T,
+            mapper: (Char) -> T
+        ): Matrix<T> {
+            return fromLines(lines, { padElement }, mapper)
+        }
+
+        fun <T> fromLines(
+            lines: List<String>,
+            padElement: DefaultValue<T>? = null,
+            mapper: (Char) -> T
+        ): Matrix<T> {
+            val base = BaseMatrix(
+                lines.map { it.toList().map(mapper) },
+                padElement ?: { mapper('.') },
+            )
+            return Matrix(base)
+        }
+
+        fun <T> ofSize(width: Int, height: Int, defaultValue: DefaultValue<T>): Matrix<T> {
+            val base = BaseMatrix(
+                (0..<height).map { (0..<width).map { defaultValue() } },
+                defaultValue,
+            )
+            return Matrix(base)
         }
     }
-
 }
 
 interface BaseDelta {
     val x: Int
     val y: Int
     operator fun plus(delta: Delta) = Delta(x + delta.x, y + delta.y)
+
+    operator fun times(n: Int) = Delta(x * n, y * n)
 
     fun distance() = x.absoluteValue + y.absoluteValue
 }

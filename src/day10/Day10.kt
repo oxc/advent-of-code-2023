@@ -49,7 +49,7 @@ fun main() = day(10) {
         Ground, Start, VerticalPipe, HorizontalPipe, NorthEast, NorthWest, SouthWest, SouthEast
     ).associateBy { it.input }
 
-    fun parseMatrix(input: List<String>) = Matrix.fromLines(input, PipeField(Ground, Location.Outside)) {
+    fun parseMatrix(input: List<String>) = Matrix.fromLines(input, { PipeField(Ground, Location.Outside) }) {
         val pipe = byInput[it] ?: wtf("Unexpected char $it")
         PipeField(pipe)
     }
