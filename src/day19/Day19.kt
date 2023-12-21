@@ -2,6 +2,9 @@ package day19
 
 import Input
 import day
+import println
+import util.collection.productOf
+import util.number.span
 import util.parse.split
 import wtf
 import java.util.*
@@ -12,9 +15,9 @@ data object Accept : TerminalAction
 data object Reject : TerminalAction
 data class Jump(val workflow: String) : Action
 
-sealed class Operator(val f: (Long, Long) -> Boolean)
-data object GreaterThan : Operator({ a, b -> a > b })
-data object LessThan : Operator({ a, b -> a < b })
+sealed class Operator(val f: (Long, Long) -> Boolean, val rangeF: (LongRange, Long) -> Boolean)
+data object GreaterThan : Operator({ a, b -> a > b }, { vs, v -> vs.first > v })
+data object LessThan : Operator({ a, b -> a < b }, { vs, v -> vs.last < v })
 
 
 enum class Category { x, m, a, s }
@@ -24,7 +27,9 @@ data class Workflow(val id: String, val rules: List<Rule>, val defaultAction: Ac
 
 typealias Workflows = SortedMap<String, Workflow>
 
-typealias Part = Map<Category, Long>
+sealed interface Part
+data class ListedPart(val values: Map<Category, Long>) : Part
+data class PartRange(val ranges: Map<Category, LongRange>) : Part
 
 fun main() = day(19) {
     fun parseAction(input: String): Action = when (input) {
@@ -56,19 +61,26 @@ fun main() = day(19) {
         line.removeSurrounding("{", "}").split(',').map {
             val (sCat, sVal) = it.split('=')
             Category.valueOf(sCat) to sVal.toLong()
-        }.toMap()
+        }.toMap().let { ListedPart(it) }
     }
 
-    fun parseWorkflowAndParts(input: Input): Pair<Workflows, List<Part>> {
+    fun parseWorkflowAndParts(input: Input): Pair<Workflows, List<ListedPart>> {
         val (inWorkflow, inParts) = input.split { it.isBlank() }
         val workflows = parseWorkflows(inWorkflow)
         val parts = parseParts(inParts)
         return workflows to parts
     }
 
-    fun Rule.apply(part: Part): Action? {
-        val partValue = part[category] ?: 0L
-        return if (op.f(partValue, comparisonValue)) action else null
+    fun Rule.apply(part: Part): Action? = when (part) {
+        is ListedPart -> {
+            val partValue = part.values[category] ?: 0
+            if (op.f(partValue, comparisonValue)) action else null
+        }
+
+        is PartRange -> {
+            val partValue = part.ranges[category]!!
+            if (op.rangeF(partValue, comparisonValue)) action else null
+        }
     }
 
     fun Workflow.apply(part: Part): Action {
@@ -88,10 +100,55 @@ fun main() = day(19) {
         }
     }
 
-    fun Part.totalRating() = values.sum()
-
     part1(check = 19114L, ::parseWorkflowAndParts) { (workflows, parts) ->
+        fun ListedPart.totalRating() = values.values.sum()
+
         parts.filter { workflows.apply(it) == Accept }.sumOf {
+            it.totalRating()
+        }
+    }
+
+    part2(check = 167409079868000L, ::parseWorkflowAndParts) { (workflows) ->
+        val allRules = workflows.values.flatMap { it.rules }
+        val categoryRanges = Category.entries.associateWith { cat ->
+            allRules.filter { it.category == cat }
+                .flatMapTo(sortedSetOf(1, 4001)) {
+                    when (it.op) {
+                        GreaterThan -> listOf(it.comparisonValue + 1)
+                        LessThan -> listOf(it.comparisonValue)
+                    }
+                }
+                .zipWithNext { start, next -> start..<next }
+        }.println()
+
+        val partRanges =
+            categoryRanges[Category.x]!!.asSequence().flatMap { xRange ->
+                categoryRanges[Category.m]!!.asSequence().flatMap { mRange ->
+                    categoryRanges[Category.a]!!.asSequence().flatMap { aRange ->
+                        categoryRanges[Category.s]!!.asSequence().map { sRange ->
+                            PartRange(
+                                mapOf(
+                                    Category.x to xRange,
+                                    Category.m to mRange,
+                                    Category.a to aRange,
+                                    Category.s to sRange,
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+        val totalCombination = categoryRanges.values.productOf { it.size.toLong() }
+
+        fun PartRange.totalRating() = ranges.values.productOf { it.span() }
+
+        var count = 0L
+        partRanges.onEach {
+            if (count++ % 1000000 == 0L) {
+                println("${count.toFloat() / totalCombination * 100}% ($count/$totalCombination)")
+            }
+        }.filter { workflows.apply(it) == Accept }.sumOf {
             it.totalRating()
         }
     }
