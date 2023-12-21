@@ -2,7 +2,6 @@ package day19
 
 import Input
 import day
-import println
 import util.collection.productOf
 import util.number.span
 import util.parse.split
@@ -15,9 +14,9 @@ data object Accept : TerminalAction
 data object Reject : TerminalAction
 data class Jump(val workflow: String) : Action
 
-sealed class Operator(val f: (Long, Long) -> Boolean, val rangeF: (LongRange, Long) -> Boolean)
-data object GreaterThan : Operator({ a, b -> a > b }, { vs, v -> vs.first > v })
-data object LessThan : Operator({ a, b -> a < b }, { vs, v -> vs.last < v })
+sealed class Operator(val f: (Long, Long) -> Boolean)
+data object GreaterThan : Operator({ a, b -> a > b })
+data object LessThan : Operator({ a, b -> a < b })
 
 
 enum class Category { x, m, a, s }
@@ -27,9 +26,9 @@ data class Workflow(val id: String, val rules: List<Rule>, val defaultAction: Ac
 
 typealias Workflows = SortedMap<String, Workflow>
 
-sealed interface Part
-data class ListedPart(val values: Map<Category, Long>) : Part
-data class PartRange(val ranges: Map<Category, LongRange>) : Part
+typealias Part = Map<Category, Long>
+
+typealias PartsRange = Map<Category, LongRange>
 
 fun main() = day(19) {
     fun parseAction(input: String): Action = when (input) {
@@ -61,26 +60,19 @@ fun main() = day(19) {
         line.removeSurrounding("{", "}").split(',').map {
             val (sCat, sVal) = it.split('=')
             Category.valueOf(sCat) to sVal.toLong()
-        }.toMap().let { ListedPart(it) }
+        }.toMap()
     }
 
-    fun parseWorkflowAndParts(input: Input): Pair<Workflows, List<ListedPart>> {
+    fun parseWorkflowAndParts(input: Input): Pair<Workflows, List<Part>> {
         val (inWorkflow, inParts) = input.split { it.isBlank() }
         val workflows = parseWorkflows(inWorkflow)
         val parts = parseParts(inParts)
         return workflows to parts
     }
 
-    fun Rule.apply(part: Part): Action? = when (part) {
-        is ListedPart -> {
-            val partValue = part.values[category] ?: 0
-            if (op.f(partValue, comparisonValue)) action else null
-        }
-
-        is PartRange -> {
-            val partValue = part.ranges[category]!!
-            if (op.rangeF(partValue, comparisonValue)) action else null
-        }
+    fun Rule.apply(part: Part): Action? {
+        val partValue = part[category] ?: 0L
+        return if (op.f(partValue, comparisonValue)) action else null
     }
 
     fun Workflow.apply(part: Part): Action {
@@ -100,56 +92,68 @@ fun main() = day(19) {
         }
     }
 
-    part1(check = 19114L, ::parseWorkflowAndParts) { (workflows, parts) ->
-        fun ListedPart.totalRating() = values.values.sum()
+    fun Part.totalRating() = values.sum()
 
+    part1(check = 19114L, ::parseWorkflowAndParts) { (workflows, parts) ->
         parts.filter { workflows.apply(it) == Accept }.sumOf {
             it.totalRating()
         }
     }
 
-    part2(check = 167409079868000L, ::parseWorkflowAndParts) { (workflows) ->
-        val allRules = workflows.values.flatMap { it.rules }
-        val categoryRanges = Category.entries.associateWith { cat ->
-            allRules.filter { it.category == cat }
-                .flatMapTo(sortedSetOf(1, 4001)) {
-                    when (it.op) {
-                        GreaterThan -> listOf(it.comparisonValue + 1)
-                        LessThan -> listOf(it.comparisonValue)
-                    }
-                }
-                .zipWithNext { start, next -> start..<next }
-        }.println()
+    data class CountingStep(val workflowId: String, val ranges: PartsRange)
 
-        val partRanges =
-            categoryRanges[Category.x]!!.asSequence().flatMap { xRange ->
-                categoryRanges[Category.m]!!.asSequence().flatMap { mRange ->
-                    categoryRanges[Category.a]!!.asSequence().flatMap { aRange ->
-                        categoryRanges[Category.s]!!.asSequence().map { sRange ->
-                            PartRange(
-                                mapOf(
-                                    Category.x to xRange,
-                                    Category.m to mRange,
-                                    Category.a to aRange,
-                                    Category.s to sRange,
-                                )
-                            )
-                        }
-                    }
-                }
+    fun PartsRange.copy(category: Category, range: LongRange): PartsRange =
+        this.toMutableMap().also { it[category] = range }
+
+    fun Rule.split(parts: PartsRange): Pair<PartsRange?, PartsRange?> {
+        val operand = parts[category]!!
+        return when (op) {
+            GreaterThan -> when {
+                operand.first > comparisonValue -> parts to null
+                operand.last <= comparisonValue -> null to parts
+                else -> parts.copy(category, comparisonValue + 1..operand.last) to
+                        parts.copy(category, operand.first..comparisonValue)
             }
 
-        val totalCombination = categoryRanges.values.productOf { it.size.toLong() }
-
-        fun PartRange.totalRating() = ranges.values.productOf { it.span() }
-
-        var count = 0L
-        partRanges.onEach {
-            if (count++ % 1000000 == 0L) {
-                println("${count.toFloat() / totalCombination * 100}% ($count/$totalCombination)")
+            LessThan -> when {
+                operand.last < comparisonValue -> parts to null
+                operand.first >= comparisonValue -> null to parts
+                else -> parts.copy(category, operand.first..<comparisonValue) to
+                        parts.copy(category, comparisonValue..operand.last)
             }
-        }.filter { workflows.apply(it) == Accept }.sumOf {
-            it.totalRating()
         }
+    }
+
+    fun PartsRange.countCombinations() = values.productOf { it.span() }
+
+    fun Workflows.countCombinations(): Long {
+        val steps = ArrayDeque(listOf(CountingStep("in", Category.entries.associateWith { 1L..4000L })))
+        var count = 0L
+        step@ while (steps.isNotEmpty()) {
+            val step = steps.removeFirst()
+            val workflow = this[step.workflowId] ?: wtf("No workflow")
+            var current = step.ranges
+            for (rule in workflow.rules) {
+                val (applies, next) = rule.split(current)
+                applies?.let {
+                    when (rule.action) {
+                        Accept -> count += it.countCombinations()
+                        Reject -> {}
+                        is Jump -> steps += CountingStep(rule.action.workflow, it)
+                    }
+                }
+                current = next ?: continue@step
+            }
+            when (workflow.defaultAction) {
+                Accept -> count += current.countCombinations()
+                Reject -> {}
+                is Jump -> steps += CountingStep(workflow.defaultAction.workflow, current)
+            }
+        }
+        return count
+    }
+
+    part2(check = 167409079868000L, ::parseWorkflowAndParts) { (workflows) ->
+        workflows.countCombinations()
     }
 }
