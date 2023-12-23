@@ -6,7 +6,7 @@ import util.number.absmod
 import kotlin.math.absoluteValue
 
 typealias Fields<T> = ArrayList<ArrayList<Field<T>>>
-typealias DefaultValue<T> = BaseDelta.() -> T
+typealias DefaultValue<T> = Point.() -> T
 
 fun interface Highlight<T> {
     fun highlightCode(field: Field<T>): String?
@@ -59,7 +59,7 @@ class BaseMatrix<T>(
             expand(left = left, top = top, right = right, bottom = bottom)
             return fields[y.coerceAtLeast(0)][x.coerceAtLeast(0)]
         }
-        return Field(this, x, y, Delta(x, y).padValue(), isOutOfBounds = true)
+        return Field(this, x, y, Point(x, y).padValue(), isOutOfBounds = true)
     }
 
 
@@ -88,7 +88,7 @@ class BaseMatrix<T>(
         }
         val newRows = (y + 1..y + rows).map { newY ->
             (0..<width).mapTo(ArrayList(width)) { x ->
-                Field(this, x, newY, Delta(x, y).newValue())
+                Field(this, x, newY, Point(x, y).newValue())
             }
         }
         fields.addAll(y + 1, newRows)
@@ -102,7 +102,7 @@ class BaseMatrix<T>(
                 row[col].run { unsafe_setX(this.x + columns) }
             }
             val newFields = (x + 1..x + columns).map { newX ->
-                Field(this, newX, y, Delta(newX, y).newValue())
+                Field(this, newX, y, Point(newX, y).newValue())
             }
             row.addAll(x + 1, newFields)
         }
@@ -128,6 +128,10 @@ abstract class AbstractMatrixElement<T>(
         val baseX = minX + x
         val baseY = minY + y
         return baseMatrix[baseX, baseY]
+    }
+
+    operator fun get(point: Point): Field<T> {
+        return get(point.x, point.y)
     }
 
     operator fun get(xs: IntRange, y: Int): HLine<T> {
@@ -286,9 +290,22 @@ class Matrix<T>(
             return Matrix(base)
         }
 
+        fun <T> fromLinesIndexed(
+            lines: List<String>,
+            padElement: DefaultValue<T>? = null,
+            mapper: (point: Point, Char) -> T
+        ): Matrix<T> {
+            val base = BaseMatrix(
+                lines.mapIndexed { y, line -> line.toList().mapIndexed { x, c -> mapper(Point(x, y), c) } },
+
+                padElement ?: { mapper(this, '.') },
+            )
+            return Matrix(base)
+        }
+
         fun <T> ofSize(width: Int, height: Int, defaultValue: DefaultValue<T>): Matrix<T> {
             val base = BaseMatrix(
-                (0..<height).map { y -> (0..<width).map { x -> Delta(x, y).defaultValue() } },
+                (0..<height).map { y -> (0..<width).map { x -> Point(x, y).defaultValue() } },
                 defaultValue,
             )
             return Matrix(base)
@@ -296,10 +313,18 @@ class Matrix<T>(
     }
 }
 
+interface BasePoint {
+    val x: Int
+    val y: Int
+    operator fun plus(delta: BaseDelta) = Point(x + delta.x, y + delta.y)
+}
+
+data class Point(override val x: Int, override val y: Int) : BasePoint
+
 interface BaseDelta {
     val x: Int
     val y: Int
-    operator fun plus(delta: Delta) = Delta(x + delta.x, y + delta.y)
+    operator fun plus(delta: BaseDelta) = Delta(x + delta.x, y + delta.y)
 
     operator fun times(n: Int) = Delta(x * n, y * n)
 
