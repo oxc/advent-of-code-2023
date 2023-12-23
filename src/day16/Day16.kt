@@ -5,6 +5,7 @@ import println
 import util.matrix.Direction
 import util.matrix.Field
 import util.matrix.Matrix
+import util.queue.queue
 import wtf
 
 typealias Contraption = Matrix<Point>
@@ -77,22 +78,19 @@ class Point(var content: Thing, var energy: Int = 0, val beams: MutableMap<Direc
 val debug = false
 
 private fun Matrix<Point>.sendLight(x: Int, y: Int, initialDir: Direction) {
-    val beams = ArrayDeque<Pair<ContraPoint, Direction>>()
-    beams += this[x, y] to initialDir
-    while (beams.isNotEmpty()) {
-        val (field, direction) = beams.removeFirst()
-        if (field.value.hasBeam(direction)) continue
+    queue(listOf(this[x, y] to initialDir)) { (field, direction) ->
+        if (field.value.hasBeam(direction)) return@queue
         field.value.beam(direction)
         field.value.content.guideLight(direction).forEach { dir ->
             field[dir].takeUnless { it.isOutOfBounds }?.let {
-                beams += it to dir
+                add(it to dir)
             }
         }
         if (debug) {
-            println(beams)
+            println(this)
             this@sendLight.println {
                 when {
-                    beams.any { beam -> beam.first == it } -> "41;1"
+                    any { beam -> beam.first == it } -> "41;1"
                     it.value.energy > 0 -> "43;1"
                     it.value.energy > 1 -> "42;1"
                     else -> null

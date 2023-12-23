@@ -3,6 +3,7 @@ package day18
 import day
 import println
 import util.matrix.*
+import util.queue.queue
 import wtf
 import kotlin.math.max
 import kotlin.math.min
@@ -74,14 +75,12 @@ private fun Terrain.digTrench(plan: List<DigPlanEntry>, waypoints: Waypoints) {
 
 private fun Terrain.fillTrench() {
     with(matrix) {
-        val fields = ArrayDeque(grow(1).asSequence().filter { it.isOutOfBounds }.toList())
-        while (fields.isNotEmpty()) {
-            val field = fields.removeFirst()
+        queue(grow(1).asSequence().filter { it.isOutOfBounds }.toList()) { field ->
             field.innerValue.kind = Outside
             for (neighbour in field.directNeighbours) {
                 if (!neighbour.isOutOfBounds && neighbour.innerValue.kind == null) {
                     neighbour.innerValue.kind = Outside
-                    fields += neighbour
+                    add(neighbour)
                 }
             }
         }

@@ -8,6 +8,7 @@ import util.matrix.Projection
 import util.matrix.Projector3D
 import util.matrix.SubMatrix3D
 import util.parse.splitToInts
+import util.queue.queue
 import wtf
 
 data class BrickDef(val xs: IntRange, val ys: IntRange, val zs: IntRange)
@@ -96,17 +97,15 @@ fun debug(msg: () -> String) {
 }
 
 fun List<Brick>.settle() {
-    val fallingBricks = ArrayDeque(this.sortedBy { it.fields.minZ })
-    while (fallingBricks.isNotEmpty()) {
-        val brick = fallingBricks.removeFirst()
+    queue(this.sortedBy { it.fields.minZ }) { brick ->
         if (brick.hasSettledOnBricks !== null) {
             debug { "Brick has already settled: $brick" }
-            continue
+            return@queue
         }
         if (brick.fields.minZ == 1) {
             debug { "Brick landed on the floor: $brick" }
             brick.hasSettledOnBricks = emptySet()
-            continue
+            return@queue
         }
         val bricksBelow = brick.wouldFallTo().asSequence().mapNotNullTo(mutableSetOf()) { field ->
             field.value.brick.takeIf { it !== null && it !== brick }
@@ -114,9 +113,9 @@ fun List<Brick>.settle() {
         val needFallFirst = bricksBelow.filter { it.hasSettledOnBricks === null }
         if (needFallFirst.isNotEmpty()) {
             debug { "Brick needs other bricks falling first: $brick needs $needFallFirst" }
-            fallingBricks.addAll(needFallFirst)
-            fallingBricks.add(brick)
-            continue
+            addAll(needFallFirst)
+            add(brick)
+            return@queue
         }
         if (bricksBelow.isNotEmpty()) {
             debug { "Brick has settled: $brick settled on $bricksBelow" }
@@ -126,7 +125,7 @@ fun List<Brick>.settle() {
             debug { "Brick falling one: $brick" }
             brick.fallOne()
             debug { "Brick fell one: $brick" }
-            fallingBricks.add(brick)
+            add(brick)
         }
     }
 
@@ -182,12 +181,10 @@ fun main() = day(22) {
 
         bricks.sumOf { brick ->
             val wouldFall = mutableSetOf(brick)
-            val checkBricks = ArrayDeque(brick.bricksHaveSettledOn)
-            while (checkBricks.isNotEmpty()) {
-                val check = checkBricks.removeFirst()
+            queue(initial = brick.bricksHaveSettledOn) { check ->
                 if (check.hasSettledOnBricks!!.all { it in wouldFall }) {
                     wouldFall += check
-                    checkBricks.addAll(check.bricksHaveSettledOn)
+                    addAll(check.bricksHaveSettledOn)
                 }
             }
             wouldFall -= brick
