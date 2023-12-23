@@ -11,7 +11,7 @@ enum class Pulse { high, low }
 sealed class Module(val name: String, val targetNames: List<String>) {
     lateinit var targets: List<Module>
     private val _inputs: MutableSet<Module> = mutableSetOf()
-    protected val inputs: Set<Module> = _inputs
+    val inputs: Set<Module> = _inputs
 
     fun init(modules: Modules) {
         targets =
@@ -26,7 +26,7 @@ class Broadcaster(targetNames: List<String>) : Module("broadcaster", targetNames
 }
 
 class FlipFlop(name: String, targetNames: List<String>) : Module(name, targetNames) {
-    var on = false
+    private var on = false
 
     override fun pulse(from: Module, pulse: Pulse) = when (pulse) {
         Pulse.high -> null
@@ -43,7 +43,7 @@ class FlipFlop(name: String, targetNames: List<String>) : Module(name, targetNam
 class Conjunction(name: String, targetNames: List<String>) : Module(name, targetNames) {
     private val lastInput by lazy { inputs.associateWithTo(mutableMapOf()) { Pulse.low } }
 
-    override fun pulse(from: Module, pulse: Pulse): Pulse? {
+    override fun pulse(from: Module, pulse: Pulse): Pulse {
         lastInput[from] = pulse
         return if (lastInput.values.all { it == Pulse.high }) Pulse.low else Pulse.high
     }
@@ -73,33 +73,70 @@ fun main() = day(20) {
         modules.values.forEach { it.init(modules) }
     }
 
+    fun pressButton(
+        broadcaster: Broadcaster, pendingPulses: ArrayDeque<TargetedPulse>,
+        sendPulse: (from: Module, to: Module, pulse: Pulse) -> Unit
+    ) {
+        sendPulse(broadcaster, broadcaster, Pulse.low)
+        while (pendingPulses.isNotEmpty()) {
+            val (from, module, pulse) = pendingPulses.removeFirst()
+            val output = module.pulse(from, pulse) ?: continue
+            module.targets.forEach { target ->
+                sendPulse(module, target, output)
+            }
+        }
+
+    }
+
     part1(checks = mapOf("test" to 32000000L, "test2" to 11687500L), ::parseModules) { modules ->
-        val broadcaster = modules.values.first { it is Broadcaster }
+        val broadcaster = modules.values.filterIsInstance<Broadcaster>().first()
 
         var lowCount = 0L
         var highCount = 0L
 
         val pendingPulses = ArrayDeque<TargetedPulse>()
-        fun sendPulse(from: Module, to: Module, pulse: Pulse) {
-            when (pulse) {
-                Pulse.high -> highCount += 1
-                Pulse.low -> lowCount += 1
-            }
-            pendingPulses += TargetedPulse(from, to, pulse)
-        }
 
         repeat(1000) {
-            sendPulse(from = broadcaster, to = broadcaster, Pulse.low)
-            while (pendingPulses.isNotEmpty()) {
-                val (from, module, pulse) = pendingPulses.removeFirst()
-                val output = module.pulse(from, pulse) ?: continue
-                module.targets.forEach { target ->
-                    sendPulse(module, target, output)
+            pressButton(broadcaster, pendingPulses) { from, to, pulse ->
+                when (pulse) {
+                    Pulse.high -> highCount += 1
+                    Pulse.low -> lowCount += 1
                 }
+                pendingPulses += TargetedPulse(from, to, pulse)
+
             }
         }
 
         highCount * lowCount
+    }
+
+    part2(checks = mapOf(), ::parseModules) { modules ->
+        val broadcaster = modules.values.filterIsInstance<Broadcaster>().first()
+
+
+        var count = 0L
+
+        val pendingPulses = ArrayDeque<TargetedPulse>()
+        while (true) {
+            var rxHighPulses = 0L
+            var rxLowPulses = 0L
+
+            pressButton(broadcaster, pendingPulses) { from: Module, to: Module, pulse: Pulse ->
+                if (to.name == "rx") {
+                    when (pulse) {
+                        Pulse.high -> rxHighPulses += 1
+                        Pulse.low -> rxLowPulses += 1
+                    }
+                }
+                pendingPulses += TargetedPulse(from, to, pulse)
+            }
+
+            count += 1
+            if (rxLowPulses == 1L) {
+                return@part2 count
+            }
+        }
+
     }
 
 }
