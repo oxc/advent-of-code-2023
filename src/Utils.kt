@@ -25,6 +25,14 @@ fun <T : AbstractMatrixElement<F>, F> T.println(
     return this
 }
 
+fun <T : AbstractMatrix3DElement<F>, F> T.println(
+    printer: Printer3D<F> = Printer3D.default(),
+    highlight: Highlight3D<F> = Highlight3D.none(),
+): T {
+    println(this.print(printer, highlight))
+    return this
+}
+
 fun <T : SparseMatrix<F>, F> T.println(
     printer: Printer<SparseFieldData<F>> = Printer.default(),
     highlight: Highlight<SparseFieldData<F>> = Highlight.none(),
