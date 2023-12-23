@@ -176,4 +176,23 @@ fun main() = day(22) {
         }
         couldDisintegrate.size
     }
+
+    part2(check = 7, ::parseBricks) { (matrix, bricks) ->
+        bricks.settle()
+
+        bricks.sumOf { brick ->
+            val wouldFall = mutableSetOf(brick)
+            val checkBricks = ArrayDeque(brick.bricksHaveSettledOn)
+            while (checkBricks.isNotEmpty()) {
+                val check = checkBricks.removeFirst()
+                if (check.hasSettledOnBricks!!.all { it in wouldFall }) {
+                    wouldFall += check
+                    checkBricks.addAll(check.bricksHaveSettledOn)
+                }
+            }
+            wouldFall -= brick
+            wouldFall.size
+        }
+    }
+
 }
