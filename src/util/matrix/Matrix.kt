@@ -3,6 +3,7 @@
 package util.matrix
 
 import util.number.absmod
+import wtf
 import kotlin.math.absoluteValue
 
 typealias Fields<T> = ArrayList<ArrayList<Field<T>>>
@@ -277,6 +278,28 @@ class Matrix<T>(
         ): Matrix<T> {
             return fromLines(lines, { padElement }, mapper)
         }
+
+        fun <T> fromLines(
+            lines: List<String>,
+            elements: Map<Char, T>,
+            padElement: DefaultValue<T>? = null,
+        ): Matrix<T> {
+            return fromLines(lines, padElement) {
+                elements[it] ?: wtf("Unexpected char $it")
+            }
+        }
+
+        fun <C, T> fromLines(
+            lines: List<String>,
+            elements: Map<Char, C>,
+            padElement: DefaultValue<T>? = null,
+            mapper: (C) -> T
+        ): Matrix<T> {
+            return fromLines(lines, padElement) {
+                elements[it]?.let(mapper) ?: wtf("Unexpected char $it")
+            }
+        }
+
 
         fun <T> fromLines(
             lines: List<String>,
