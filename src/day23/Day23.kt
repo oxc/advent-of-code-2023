@@ -3,8 +3,7 @@ package day23
 import Input
 import day
 import println
-import util.matrix.Direction
-import util.matrix.Matrix
+import util.matrix.*
 import util.queue.queue
 import wtf
 
@@ -17,18 +16,58 @@ data object RightSlope : Slope(Direction.Right, '>')
 data object DownSlope : Slope(Direction.Bottom, 'v')
 data object LeftSlope : Slope(Direction.Left, '<')
 
-data class Point(val type: Spot, val trails: MutableMap<Direction, Int> = mutableMapOf()) {
-    fun longestTrail() = trails.maxOfOrNull { it.value }
+sealed interface Point {
+    val type: Spot
+    fun longestTrail(): Int?
+}
+
+data class Part1Point(override val type: Spot, val trails: MutableMap<Direction, Int> = mutableMapOf()) : Point {
+    override fun longestTrail() = trails.maxOfOrNull { it.value }
+}
+
+data class Part2Point(override val type: Spot, val trails: MutableSet<Trail> = mutableSetOf()) : Point {
+    override fun longestTrail() = trails.maxOfOrNull { it.size }
+}
+
+data class Trail(val head: Field<Part2Point>, val tail: Trail?) {
+    val size: Int = (tail?.size ?: 0) + 1
+
+    operator fun plus(head: Field<Part2Point>) = Trail(head, this)
+
+    fun asSequence() = sequence {
+        var current: Trail? = this@Trail
+        while (current != null) {
+            yield(current.head)
+            current = current.tail
+        }
+    }
+
+    operator fun contains(element: Field<Part2Point>): Boolean = element in asSequence()
+}
+
+private fun <P : Point> Matrix<P>.printTrails(
+    printNumbers: Boolean = true,
+    highlight: Highlight<P> = Highlight.none()
+) {
+    val printer: Printer<P> = if (!printNumbers) {
+        Printer { value.type.c.toString() }
+    } else {
+        val plen = asSequence().maxOf { it.value.longestTrail() ?: 0 }.toString().length
+        Printer {
+            value.type.c + (value.longestTrail()?.toString() ?: "").padStart(plen)
+        }
+    }
+    println(printer = printer, highlight = highlight)
 }
 
 fun main() = day(23) {
-    fun parseMap(input: Input) = Matrix.fromLines(input, setOf(
-        Path, Forest, UpSlope, RightSlope, DownSlope, LeftSlope
-    ).associateBy { it.c }) { type: Spot ->
-        Point(type)
+    fun <P : Point> parseMap(mapper: (Spot) -> P): (Input) -> Matrix<P> = { input: Input ->
+        Matrix.fromLines(input, setOf(
+            Path, Forest, UpSlope, RightSlope, DownSlope, LeftSlope
+        ).associateBy { it.c }) { spot: Spot -> mapper(spot) }
     }
 
-    part1(check = 94, ::parseMap) { map ->
+    part1(check = 94, parseMap(::Part1Point)) { map ->
         val start = map.row(0).asSequence().single { it.value.type === Path }
         val target = map.row(map.height - 1).asSequence().single { it.value.type === Path }
         target.value.trails[Direction.Bottom] = 0
@@ -39,7 +78,7 @@ fun main() = day(23) {
                 is Slope -> listOf(field.value.type.direction.opposite())
                 else -> wtf("There should be no ${field.value.type} in the path")
             }
-            val longestTrail = field.value.trails.maxOf { it.value } + 1
+            val longestTrail = field.value.longestTrail()!! + 1
             for (direction in validDirections) {
                 val trailDirection = direction.opposite()
                 val neighbour = field[direction]
@@ -56,11 +95,54 @@ fun main() = day(23) {
             }
         }
 
-        val plen = map.asSequence().maxOf { it.value.longestTrail() ?: 0 }.toString().length
-        map.println(printer = {
-            value.type.c + (value.longestTrail()?.toString() ?: "").padStart(plen)
-        })
+        map.printTrails()
 
-        start.value.trails.maxOf { it.value }
+        start.value.longestTrail()!!
+    }
+
+    part2(check = 154, parseMap(::Part2Point)) { map ->
+        val start = map.row(0).asSequence().single { it.value.type === Path }
+        val target = map.row(map.height - 1).asSequence().single { it.value.type === Path }
+        target.value.trails += Trail(target, null)
+
+        var lastQ = -1
+        queue(listOf(target)) { field ->
+            if (field === start) {
+                map.printTrails(false) { f ->
+                    when {
+                        any { it === f } -> "43;1"
+                        else -> null
+                    }
+                }
+                println("Longest trail so far: ${start.value.longestTrail()}")
+            }
+            for (direction in Direction.entries) {
+                val neighbour = field[direction]
+                when {
+                    neighbour.isOutOfBounds -> continue
+                    neighbour.value.type == Forest -> continue
+                    else -> {
+                        val newTrails = field.value.trails.filterNot {
+                            neighbour in it
+                        }.map { it + neighbour }
+                        val added = newTrails.fold(false) { added, trail ->
+                            neighbour.value.trails.add(trail) || added
+                        }
+                        if (added) {
+                            add(neighbour)
+                        }
+                    }
+                }
+            }
+            val newQ = size / 100
+            if (newQ != lastQ) {
+                println("Queued: $size")
+                lastQ = newQ
+            }
+        }
+
+        map.printTrails()
+
+        start.value.longestTrail()!! - 1
     }
 }
