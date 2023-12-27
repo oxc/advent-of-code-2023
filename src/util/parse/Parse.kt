@@ -16,8 +16,8 @@ inline fun List<String>.split(predicate: (String) -> Boolean): List<List<String>
     return result
 }
 
-fun List<String>.toLongs() = map { it.toLong() }
+fun List<String>.toLongs() = map { it.trim().toLong() }
 fun String.splitToLongs(delimiter: Char = ' ') = this.trim().split(delimiter).toLongs()
 fun String.splitToLongs(regex: Regex) = this.trim().split(regex).toLongs()
-fun List<String>.toInts() = map { it.toInt() }
+fun List<String>.toInts() = map { it.trim().toInt() }
 fun String.splitToInts(delimiter: Char = ' ') = this.trim().split(delimiter).toInts()
